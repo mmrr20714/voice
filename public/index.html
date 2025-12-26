@@ -25,7 +25,6 @@
       overflow-x:hidden;
       position:relative;
     }
-
     body::before {
       content:"";
       position:fixed;
@@ -36,7 +35,6 @@
       animation: bgFloat 60s infinite alternate;
     }
     @keyframes bgFloat { 0%{transform:scale(1.1) translate(0,0)} 100%{transform:scale(1.2) translate(5%,5%)} }
-
     .container { max-width:1000px; margin:0 auto; padding:20px; position:relative; z-index:1; }
     h1 {
       font-size:4.5em;
@@ -49,7 +47,6 @@
       animation: titlePulse 3s infinite alternate;
     }
     @keyframes titlePulse { from {transform:scale(1)} to {transform:scale(1.05)} }
-
     .card {
       background: rgba(26,0,51,0.7);
       backdrop-filter: blur(10px);
@@ -61,7 +58,6 @@
       transition: all 0.4s;
     }
     .card:hover { transform: translateY(-10px); box-shadow: 0 0 60px var(--glow); }
-
     .users { display:flex; flex-wrap:wrap; gap:25px; justify-content:center; }
     .user {
       text-align:center;
@@ -85,7 +81,6 @@
       text-shadow:0 0 10px var(--glow);
     }
     @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
-
     .controls { text-align:center; margin:50px 0; }
     button {
       background: linear-gradient(45deg, var(--neon), var(--purple));
@@ -111,7 +106,6 @@
     }
     button:hover::before { transform: translateX(100%); }
     button:hover { transform:scale(1.15) rotate(5deg); box-shadow: 0 0 50px var(--glow); }
-
     #chat {
       height:300px;
       overflow-y:scroll;
@@ -132,7 +126,6 @@
       animation: msgPop 0.5s ease-out;
     }
     @keyframes msgPop { from {opacity:0; transform:translateY(20px)} to {opacity:1; transform:translateY(0)} }
-
     input {
       padding:20px;
       width:75%;
@@ -145,7 +138,6 @@
       transition: all 0.4s;
     }
     input:focus { outline:none; box-shadow: 0 0 30px var(--glow); }
-
     body.disco-active {
       animation: discoBg 8s linear infinite;
     }
@@ -156,67 +148,55 @@
     }
     body.disco-active .user img { animation: neonGlow 1s ease-in-out infinite alternate; }
     body.disco-active button { animation: pulse 1.2s infinite; }
-
     @keyframes neonGlow { from {box-shadow:0 0 20px #ff2e63, 0 0 40px #a166ff} to {box-shadow:0 0 40px #00f0ff, 0 0 80px #ff2e63} }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Brozone Voice Party 💜🪩✨</h1>
-
     <div class="card">
       <input type="text" id="nameInput" placeholder="اسم انیمه‌ای شیطونیت چیه؟ 😈" maxlength="20">
       <button onclick="setName()">استارت پارتی!</button>
     </div>
-
     <div class="card">
       <div id="online">آنلاین: ۱ نفر (تو تنهایی فعلاً 😂)</div>
       <div class="users" id="userList"></div>
     </div>
-
     <div class="controls">
       <button id="mute">🔇 مات کردن میکروفون</button>
       <button id="disco">🪩 دیسکو روشن!</button>
       <button id="uploadMusicBtn">🎵 آپلود و پخش موزیک!</button>
     </div>
-
     <div class="card" id="musicPlayerCard" style="display:none;">
       <h3>🎶 موزیک پارتی (همه با هم گوش بدیم 😏)</h3>
       <audio id="partyMusic" controls autoplay style="width:100%;"></audio>
       <button onclick="document.getElementById('partyMusic').play()">▶ پلی دوباره</button>
     </div>
-
     <div class="card">
       <h3>چت متنی (که داد نزنیم 😏)</h3>
       <div id="chat"></div>
       <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
     </div>
   </div>
-
   <input type="file" id="musicInput" accept="audio/*" style="display:none;">
-
   <audio id="joinSound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" preload="auto"></audio>
   <audio id="leaveSound" src="https://assets.mixkit.co/sfx/preview/mixkit-negative-answer-little-beep-932.mp3" preload="auto"></audio>
-
   <script>
     const socket = io();
     let myStream, peers = {}, myName = "ناشناس شیطون";
     let isMuted = false, discoMode = false;
-
     const animeAvatars = [
       "https://i.imgur.com/5Rghs8s.jpeg","https://i.imgur.com/8h9dP7A.jpeg",
       "https://i.imgur.com/2L8qPXy.jpeg","https://i.imgur.com/JhW5b9S.jpeg",
       "https://i.imgur.com/7r3qZ8P.jpeg","https://i.imgur.com/X9kP0qQ.jpeg",
       "https://i.imgur.com/Z3qYq0m.jpeg","https://i.imgur.com/4eZ3Q2r.jpeg"
     ];
-
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
       socket.emit('set-name', myName);
       document.querySelector('.card input').style.display = 'none';
       document.querySelector('.card button').style.display = 'none';
     }
-
     function sendMsg() {
       const input = document.getElementById('msgInput');
       if (input.value.trim()) {
@@ -224,7 +204,6 @@
         input.value = '';
       }
     }
-
     socket.on('user-list', (users) => {
       document.getElementById('online').textContent = `آنلاین: ${users.length} نفر 🔥`;
       const list = document.getElementById('userList');
@@ -235,16 +214,13 @@
         </div>
       `).join('');
     });
-
     socket.on('chat', (data) => {
       const chat = document.getElementById('chat');
       chat.innerHTML += `<div class="msg"><strong>${data.name}:</strong> ${data.msg}</div>`;
       chat.scrollTop = chat.scrollHeight;
     });
-
     socket.on('user-joined', () => document.getElementById('joinSound').play());
     socket.on('user-left', () => document.getElementById('leaveSound').play());
-
     document.getElementById('mute').onclick = () => {
       if (!myStream) return;
       isMuted = !isMuted;
@@ -253,7 +229,6 @@
       btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
       btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
     };
-
     document.getElementById('disco').onclick = () => {
       discoMode = !discoMode;
       const btn = document.getElementById('disco');
@@ -265,99 +240,97 @@
         btn.textContent = '🪩 دیسکو روشن!';
       }
     };
-
-    // فیچر موزیک خفن
+    // فیچر موزیک خفن (فیکس‌شده!)
     document.getElementById('uploadMusicBtn').onclick = () => {
       document.getElementById('musicInput').click();
     };
-
     document.getElementById('musicInput').onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
+      if (!file.type.startsWith('audio/')) {
+        alert('این که موزیک نیست Brozone! یه فایل صوتی بده 😤');
+        return;
+      }
       const formData = new FormData();
       formData.append('music', file);
-
       fetch('/upload-music', {
         method: 'POST',
         body: formData
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('آپلود شکست!');
+        return res.json();
+      })
       .then(data => {
         playPartyMusic(data.url);
       })
-      .catch(err => alert('آپلود نشد Brozone! دوباره امتحان کن 😤'));
+      .catch(err => {
+        console.error(err);
+        alert('آپلود نشد Brozone! اینترنت چک کن یا دوباره امتحان کن 😭');
+      });
     };
-
     socket.on('new-music', (url) => {
       playPartyMusic(url);
     });
-
     function playPartyMusic(url) {
       const audio = document.getElementById('partyMusic');
       audio.src = url;
-      audio.play().catch(e => console.log('autoplay blocked, پلی دستی بزن 😏'));
+      audio.volume = 0.8;
+      audio.load();
+      audio.play().then(() => {
+        console.log('موزیک پلی شد 🔥');
+      }).catch(e => {
+        console.log('اتوپلی بلاک شد، دستی بزن 😤', e);
+        alert('مرورگرت اتوپلی بلاک کرد، رو پلی بزن!');
+      });
       document.getElementById('musicPlayerCard').style.display = 'block';
-      document.getElementById('chat').innerHTML += `<div class="msg"><strong>پارتی:</strong> موزیک جدید پخش شد! 🎶</div>`;
+      document.getElementById('chat').innerHTML += `<div class="msg"><strong>پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🎶</div>`;
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
-
-    // WebRTC
+    // WebRTC (دست نخورده)
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         myStream = stream;
-
         socket.on('current-users', (users) => {
           users.forEach(userId => {
             if (userId !== socket.id) createPeer(userId, false);
           });
         });
-
         socket.on('user-joined', (newUserId) => {
           if (newUserId !== socket.id) createPeer(newUserId, true);
         });
-
         socket.on('user-left', (leftId) => {
           if (peers[leftId]) {
             peers[leftId].destroy();
             delete peers[leftId];
           }
         });
-
         socket.on('signal', (data) => {
           if (!peers[data.from]) createPeer(data.from, false);
           peers[data.from].signal(data.signal);
         });
       })
       .catch(() => alert('میکروفون بده دیگه Brozone! 😤 بدون صدا پارتی نمیشه که 😭'));
-
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
-
       const peer = new SimplePeer({
         initiator: initiator,
         stream: myStream,
         trickle: false
       });
-
       peer.on('signal', signal => {
         socket.emit('signal', { to: peerId, signal });
       });
-
       peer.on('stream', remoteStream => {
         addRemoteAudio(remoteStream, peerId);
       });
-
       peer.on('close', () => {
         delete peers[peerId];
       });
-
       peers[peerId] = peer;
     }
-
     function addRemoteAudio(stream, peerId) {
       if (document.getElementById(peerId)) return;
-
       const audio = document.createElement('audio');
       audio.srcObject = stream;
       audio.id = peerId;
