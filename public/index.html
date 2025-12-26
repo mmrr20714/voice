@@ -338,22 +338,27 @@
     }
     // Init audio با permission چک
     async function initAudio() {
-      try {
-        if (myStream) return;
-        myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Loopback test برای چک میکروفون
-        const localAudio = document.getElementById('localAudio');
-        localAudio.srcObject = myStream;
-        localAudio.muted = true; // hidden و muted
-        localAudio.play().catch(() => {});
-        addAudioStream(myStream, socket.id);
-        visualize(myStream, socket.id);
-        socket.emit('ready-for-peers'); // بگو آماده‌ای
-      } catch (err) {
-        console.error('Audio permission error:', err);
-        alert('میکروفون اجازه نداد Brozone! برو تنظیمات مرورگر و اجازه بده، بعد ریلود کن 😭');
+  try {
+    if (myStream) return;
+
+    myStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
       }
-    }
+    });
+
+    // ❌ هیچ audio ای برای صدای خودت نساز
+    // فقط visualize
+    visualize(myStream, socket.id);
+
+  } catch (err) {
+    console.error('Audio permission error:', err);
+    alert('میکروفون اجازه نداد Brozone 😭');
+  }
+}
+
     // Force play همه audio بعد تعامل
     function forcePlayAllAudio() {
       document.querySelectorAll('audio').forEach(audio => {
