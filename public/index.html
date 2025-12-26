@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brozone Voice Party 💜🪩</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@500;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --neon: #e94560; --purple: #a166ff; --bg: #0f0f1e; --card: #1a1a2e; }
+    body { margin:0; padding:0; background:var(--bg); color:#fff; font-family:'Vazirmatn',sans-serif; min-height:100vh; transition: all 0.5s; }
+    .container { max-width:900px; margin:0 auto; padding:20px; }
+    h1 { font-size:3.5em; text-align:center; background:linear-gradient(90deg,var(--neon),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:30px 0; }
+    .card { background:var(--card); border-radius:20px; padding:25px; margin:20px 0; box-shadow:0 0 30px rgba(233,69,96,0.4); }
+    .users { display:flex; flex-wrap:wrap; gap:20px; justify-content:center; }
+    .user { text-align:center; transition:0.5s; }
+    .user img { width:90px; height:90px; border-radius:50%; border:5px solid var(--neon); transition:0.5s; }
+    .user span { margin-top:10px; font-weight:bold; font-size:1.1em; }
+    .controls { text-align:center; margin:40px 0; }
+    button { background:var(--neon); color:white; border:none; padding:18px 35px; margin:15px; border-radius:50px; font-size:1.3em; cursor:pointer; transition:0.4s; box-shadow:0 0 25px rgba(233,69,96,0.6); }
+    button:hover { transform:scale(1.15) rotate(5deg); }
+    #disco { background:linear-gradient(45deg,#ff00ff,#00ffff,#ffff00,#ff00ff); background-size:300%; }
+    #chat { height:250px; overflow-y:scroll; background:#16213e; padding:20px; border-radius:15px; margin-bottom:15px; }
+    input { padding:18px; width:75%; border-radius:50px; border:none; background:#2a2a4e; color:white; font-size:1.1em; }
+    .msg { margin:10px 0; padding:12px; background:#2a2a4e; border-radius:20px; max-width:80%; align-self:flex-start; }
+
+    /* دیسکو مود خفن‌تر */
+    body.disco-active {
+      animation: discoBg 10s linear infinite;
+      background: linear-gradient(45deg, #0f0f1e, #301860, #600b40, #1e0040, #0f0f1e);
+      background-size: 400% 400%;
+    }
+    @keyframes discoBg { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+    body.disco-active .user img { animation: neonGlow 1.2s ease-in-out infinite alternate; }
+    @keyframes neonGlow { from { box-shadow:0 0 20px var(--neon);} to { box-shadow:0 0 40px #ff00ff, 0 0 60px #00ffff; } }
+    body.disco-active button { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.1)} 100%{transform:scale(1)} }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Brozone Voice Party  🪩💜</h1>
+
+    <div class="card">
+      <input type="text" id="nameInput" placeholder="اسم انیمه‌ای شیطونیت چیه؟ 😈" maxlength="20">
+      <button onclick="setName()">استارت پارتی!</button>
+    </div>
+
+    <div class="card">
+      <div id="online">آنلاین: ۱ نفر (تو تنهایی فعلاً 😂)</div>
+      <div class="users" id="userList"></div>
+    </div>
+
+    <div class="controls">
+      <button id="mute">🔇 مات کردن میکروفون</button>
+      <button id="disco">🪩 دیسکو روشن!</button>
+    </div>
+
+    <div class="card">
+      <h3>چت متنی (که داد نزنیم 😏)</h3>
+      <div id="chat"></div>
+      <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
+    </div>
+  </div>
+
+  <audio id="joinSound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" preload="auto"></audio>
+  <audio id="leaveSound" src="https://assets.mixkit.co/sfx/preview/mixkit-negative-answer-little-beep-932.mp3" preload="auto"></audio>
+
+  <script>
+    const socket = io();
+    let myStream, peers = {}, myName = "ناشناس شیطون";
+    let isMuted = false, discoMode = false;
+
+    const animeAvatars = [
+      "https://i.imgur.com/5Rghs8s.jpeg","https://i.imgur.com/8h9dP7A.jpeg",
+      "https://i.imgur.com/2L8qPXy.jpeg","https://i.imgur.com/JhW5b9S.jpeg",
+      "https://i.imgur.com/7r3qZ8P.jpeg","https://i.imgur.com/X9kP0qQ.jpeg",
+      "https://i.imgur.com/Z3qYq0m.jpeg","https://i.imgur.com/4eZ3Q2r.jpeg"
+    ];
+
+    function setName() {
+      myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
+      socket.emit('set-name', myName);
+      document.querySelector('.card input').style.display = 'none';
+      document.querySelector('.card button').style.display = 'none';
+    }
+
+    function sendMsg() {
+      const input = document.getElementById('msgInput');
+      if (input.value.trim()) {
+        socket.emit('chat', input.value);
+        input.value = '';
+      }
+    }
+
+    socket.on('user-list', (users) => {
+      document.getElementById('online').textContent = `آنلاین: ${users.length} نفر 🔥`;
+      const list = document.getElementById('userList');
+      list.innerHTML = users.map(u => `
+        <div class="user">
+          <img src="${animeAvatars[Math.floor(Math.random()*animeAvatars.length)]}">
+          <span>${u.name}</span>
+        </div>
+      `).join('');
+    });
+
+    socket.on('chat', (data) => {
+      const chat = document.getElementById('chat');
+      chat.innerHTML += `<div class="msg"><strong>${data.name}:</strong> ${data.msg}</div>`;
+      chat.scrollTop = chat.scrollHeight;
+    });
+
+    socket.on('user-joined', () => document.getElementById('joinSound').play());
+    socket.on('user-left', () => document.getElementById('leaveSound').play());
+
+    // میوت خفن
+    document.getElementById('mute').onclick = () => {
+      if (!myStream) return;
+      isMuted = !isMuted;
+      myStream.getAudioTracks()[0].enabled = !isMuted;
+      const btn = document.getElementById('mute');
+      btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
+      btn.style.background = isMuted ? '#16213e' : 'var(--neon)';
+    };
+
+    // دیسکو سوپر خفن
+    document.getElementById('disco').onclick = () => {
+      discoMode = !discoMode;
+      const btn = document.getElementById('disco');
+      if (discoMode) {
+        document.body.classList.add('disco-active');
+        btn.textContent = '🪩 دیسکو خاموش!';
+        btn.style.animation = 'disco 4s linear infinite';
+      } else {
+        document.body.classList.remove('disco-active');
+        btn.textContent = '🪩 دیسکو روشن!';
+        btn.style.animation = 'none';
+      }
+    };
+
+    // WebRTC (همون قبلی، فقط مرتب‌تر)
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        myStream = stream;
+
+        socket.on('user-joined', id => createPeer(id, true));
+        socket.on('user-left', id => { if (peers[id]) peers[id].close(); delete peers[id]; });
+        socket.on('signal', data => {
+          if (!peers[data.from]) createPeer(data.from, false);
+          peers[data.from].signal(data.signal);
+        });
+      })
+      .catch(() => alert('میکروفون بده دیگه Brozone! 😤'));
+
+    function createPeer(id, initiator) {
+      const peer = new SimplePeer({ initiator, stream: myStream, trickle: false });
+      peer.on('signal', signal => socket.emit('signal', { to: id, signal }));
+      peer.on('stream', remoteStream => addRemoteAudio(remoteStream, id));
+      peers[id] = peer;
+    }
+
+    function addRemoteAudio(stream, id) {
+      const audio = document.createElement('audio');
+      audio.srcObject = stream;
+      audio.id = id;
+      audio.play();
+      document.body.appendChild(audio);
+    }
+  </script>
+</body>
+</html>
