@@ -8,34 +8,195 @@
   <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@500;800&display=swap" rel="stylesheet">
   <style>
-    :root { --neon: #e94560; --purple: #a166ff; --bg: #0f0f1e; --card: #1a1a2e; }
-    body { margin:0; padding:0; background:var(--bg); color:#fff; font-family:'Vazirmatn',sans-serif; min-height:100vh; transition: all 0.5s; }
-    .container { max-width:900px; margin:0 auto; padding:20px; }
-    h1 { font-size:3.5em; text-align:center; background:linear-gradient(90deg,var(--neon),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin:30px 0; }
-    .card { background:var(--card); border-radius:20px; padding:25px; margin:20px 0; box-shadow:0 0 30px rgba(233,69,96,0.4); }
-    .users { display:flex; flex-wrap:wrap; gap:20px; justify-content:center; }
-    .user { text-align:center; transition:0.5s; }
-    .user img { width:90px; height:90px; border-radius:50%; border:5px solid var(--neon); transition:0.5s; }
-    .user span { margin-top:10px; font-weight:bold; font-size:1.1em; }
-    .controls { text-align:center; margin:40px 0; }
-    button { background:var(--neon); color:white; border:none; padding:18px 35px; margin:15px; border-radius:50px; font-size:1.3em; cursor:pointer; transition:0.4s; box-shadow:0 0 25px rgba(233,69,96,0.6); }
-    button:hover { transform:scale(1.15) rotate(5deg); }
-    #disco { background:linear-gradient(45deg,#ff00ff,#00ffff,#ffff00,#ff00ff); background-size:300%; }
-    #chat { height:250px; overflow-y:scroll; background:#16213e; padding:20px; border-radius:15px; margin-bottom:15px; }
-    input { padding:18px; width:75%; border-radius:50px; border:none; background:#2a2a4e; color:white; font-size:1.1em; }
-    .msg { margin:10px 0; padding:12px; background:#2a2a4e; border-radius:20px; max-width:80%; align-self:flex-start; }
-
-    /* دیسکو مود خفن‌تر */
-    body.disco-active {
-      animation: discoBg 10s linear infinite;
-      background: linear-gradient(45deg, #0f0f1e, #301860, #600b40, #1e0040, #0f0f1e);
-      background-size: 400% 400%;
+    :root { 
+      --neon: #ff4d80; /* صورتی نئونی خفن‌تر */
+      --purple: #b266ff; /* بنفش انیمه‌ای‌تر */
+      --bg: #0a0a1b; /* بک‌گراند تیره‌تر */
+      --card: #1e1e38; /* کارت‌ها شیک‌تر */
+      --holo: linear-gradient(45deg, rgba(255,77,128,0.5), rgba(178,102,255,0.5), rgba(0,255,255,0.5)); /* افکت هولوگرافیک */
     }
-    @keyframes discoBg { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-    body.disco-active .user img { animation: neonGlow 1.2s ease-in-out infinite alternate; }
-    @keyframes neonGlow { from { box-shadow:0 0 20px var(--neon);} to { box-shadow:0 0 40px #ff00ff, 0 0 60px #00ffff; } }
-    body.disco-active button { animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.1)} 100%{transform:scale(1)} }
+    body { 
+      margin: 0; 
+      padding: 0; 
+      background: var(--bg); 
+      color: #fff; 
+      font-family: 'Vazirmatn', sans-serif; 
+      min-height: 100vh; 
+      transition: all 0.5s; 
+      overflow-x: hidden;
+    }
+    .container { 
+      max-width: 900px; 
+      margin: 0 auto; 
+      padding: 20px; 
+    }
+    h1 { 
+      font-size: 3.8em; 
+      text-align: center; 
+      background: var(--holo); 
+      -webkit-background-clip: text; 
+      -webkit-text-fill-color: transparent; 
+      margin: 30px 0; 
+      text-shadow: 0 0 20px rgba(255,77,128,0.7); 
+      animation: glowText 2s ease-in-out infinite alternate; 
+    }
+    @keyframes glowText { 
+      from { text-shadow: 0 0 20px rgba(255,77,128,0.7); } 
+      to { text-shadow: 0 0 40px rgba(178,102,255,0.7); } 
+    }
+    .card { 
+      background: var(--card); 
+      border-radius: 25px; 
+      padding: 25px; 
+      margin: 20px 0; 
+      box-shadow: 0 0 40px rgba(255,77,128,0.3); 
+      border: 1px solid var(--neon); 
+      transition: transform 0.3s; 
+    }
+    .card:hover { 
+      transform: scale(1.02); 
+    }
+    .users { 
+      display: flex; 
+      flex-wrap: wrap; 
+      gap: 20px; 
+      justify-content: center; 
+    }
+    .user { 
+      text-align: center; 
+      transition: 0.5s; 
+    }
+    .user img { 
+      width: 90px; 
+      height: 90px; 
+      border-radius: 50%; 
+      border: 5px solid var(--neon); 
+      transition: 0.5s; 
+      filter: drop-shadow(0 0 15px var(--purple)); 
+    }
+    .user img:hover { 
+      transform: rotate(10deg) scale(1.1); 
+      border-color: #00ffff; 
+    }
+    .user span { 
+      margin-top: 10px; 
+      font-weight: 800; 
+      font-size: 1.2em; 
+      text-shadow: 0 0 10px var(--neon); 
+    }
+    .controls { 
+      text-align: center; 
+      margin: 40px 0; 
+    }
+    button { 
+      background: var(--holo); 
+      color: white; 
+      border: none; 
+      padding: 18px 35px; 
+      margin: 15px; 
+      border-radius: 50px; 
+      font-size: 1.3em; 
+      font-weight: 800; 
+      cursor: pointer; 
+      transition: all 0.4s; 
+      box-shadow: 0 0 25px rgba(255,77,128,0.6); 
+      position: relative; 
+      overflow: hidden; 
+    }
+    button::before { 
+      content: ''; 
+      position: absolute; 
+      top: 0; 
+      left: -100%; 
+      width: 100%; 
+      height: 100%; 
+      background: var(--holo); 
+      transition: 0.5s; 
+    }
+    button:hover::before { 
+      left: 0; 
+    }
+    button:hover { 
+      transform: scale(1.15) rotate(5deg); 
+      box-shadow: 0 0 40px rgba(0,255,255,0.6); 
+    }
+    #disco { 
+      background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff); 
+      background-size: 300%; 
+      animation: discoButton 4s linear infinite; 
+    }
+    @keyframes discoButton { 
+      0% { background-position: 0% 50%; } 
+      100% { background-position: 300% 50%; } 
+    }
+    #chat { 
+      height: 250px; 
+      overflow-y: scroll; 
+      background: #16213e; 
+      padding: 20px; 
+      border-radius: 15px; 
+      margin-bottom: 15px; 
+      border: 1px solid var(--purple); 
+    }
+    input { 
+      padding: 18px; 
+      width: 75%; 
+      border-radius: 50px; 
+      border: none; 
+      background: #2a2a4e; 
+      color: white; 
+      font-size: 1.1em; 
+      box-shadow: 0 0 15px rgba(178,102,255,0.4); 
+      transition: 0.3s; 
+    }
+    input:focus { 
+      outline: none; 
+      box-shadow: 0 0 25px rgba(255,77,128,0.6); 
+    }
+    .msg { 
+      margin: 10px 0; 
+      padding: 12px; 
+      background: #2a2a4e; 
+      border-radius: 20px; 
+      max-width: 80%; 
+      align-self: flex-start; 
+      transition: 0.3s; 
+      animation: slideIn 0.3s ease-out; 
+    }
+    @keyframes slideIn { 
+      from { transform: translateX(50px); opacity: 0; } 
+      to { transform: translateX(0); opacity: 1; } 
+    }
+    .msg:hover { 
+      background: #3a3a6e; 
+    }
+
+    /* دیسکو مود حالا خفن‌تره */
+    body.disco-active {
+      animation: discoBg 8s linear infinite;
+      background: linear-gradient(45deg, #0a0a1b, #2a1b60, #600b40, #1b0040, #0a0a1b);
+      background-size: 500% 500%;
+    }
+    @keyframes discoBg { 
+      0% { background-position: 0% 50%; } 
+      50% { background-position: 100% 50%; } 
+      100% { background-position: 0% 50%; } 
+    }
+    body.disco-active .user img { 
+      animation: neonGlow 1s ease-in-out infinite alternate; 
+    }
+    @keyframes neonGlow { 
+      from { box-shadow: 0 0 20px var(--neon), 0 0 30px var(--purple); } 
+      to { box-shadow: 0 0 40px #ff00ff, 0 0 60px #00ffff; } 
+    }
+    body.disco-active button { 
+      animation: pulse 1.3s infinite; 
+    }
+    @keyframes pulse { 
+      0% { transform: scale(1); } 
+      50% { transform: scale(1.12); } 
+      100% { transform: scale(1); } 
+    }
   </style>
 </head>
 <body>
@@ -114,57 +275,87 @@
     socket.on('user-joined', () => document.getElementById('joinSound').play());
     socket.on('user-left', () => document.getElementById('leaveSound').play());
 
-    // میوت خفن
     document.getElementById('mute').onclick = () => {
       if (!myStream) return;
       isMuted = !isMuted;
       myStream.getAudioTracks()[0].enabled = !isMuted;
       const btn = document.getElementById('mute');
       btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
-      btn.style.background = isMuted ? '#16213e' : 'var(--neon)';
+      btn.style.background = isMuted ? '#16213e' : 'var(--holo)';
     };
 
-    // دیسکو سوپر خفن
     document.getElementById('disco').onclick = () => {
       discoMode = !discoMode;
       const btn = document.getElementById('disco');
       if (discoMode) {
         document.body.classList.add('disco-active');
         btn.textContent = '🪩 دیسکو خاموش!';
-        btn.style.animation = 'disco 4s linear infinite';
       } else {
         document.body.classList.remove('disco-active');
         btn.textContent = '🪩 دیسکو روشن!';
-        btn.style.animation = 'none';
       }
     };
 
-    // WebRTC (همون قبلی، فقط مرتب‌تر)
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         myStream = stream;
 
-        socket.on('user-joined', id => createPeer(id, true));
-        socket.on('user-left', id => { if (peers[id]) peers[id].close(); delete peers[id]; });
-        socket.on('signal', data => {
+        socket.on('current-users', (users) => {
+          users.forEach(userId => {
+            if (userId !== socket.id) createPeer(userId, false);
+          });
+        });
+
+        socket.on('user-joined', (newUserId) => {
+          if (newUserId !== socket.id) createPeer(newUserId, true);
+        });
+
+        socket.on('user-left', (leftId) => {
+          if (peers[leftId]) {
+            peers[leftId].destroy();
+            delete peers[leftId];
+          }
+        });
+
+        socket.on('signal', (data) => {
           if (!peers[data.from]) createPeer(data.from, false);
           peers[data.from].signal(data.signal);
         });
       })
-      .catch(() => alert('میکروفون بده دیگه Brozone! 😤'));
+      .catch(() => alert('میکروفون بده دیگه Brozone! 😤 بدون صدا پارتی نمیشه که 😭'));
 
-    function createPeer(id, initiator) {
-      const peer = new SimplePeer({ initiator, stream: myStream, trickle: false });
-      peer.on('signal', signal => socket.emit('signal', { to: id, signal }));
-      peer.on('stream', remoteStream => addRemoteAudio(remoteStream, id));
-      peers[id] = peer;
+    function createPeer(peerId, initiator) {
+      if (peers[peerId]) return;
+
+      const peer = new SimplePeer({
+        initiator: initiator,
+        stream: myStream,
+        trickle: false
+      });
+
+      peer.on('signal', signal => {
+        socket.emit('signal', { to: peerId, signal });
+      });
+
+      peer.on('stream', remoteStream => {
+        addRemoteAudio(remoteStream, peerId);
+      });
+
+      peer.on('close', () => {
+        delete peers[peerId];
+      });
+
+      peers[peerId] = peer;
     }
 
-    function addRemoteAudio(stream, id) {
+    function addRemoteAudio(stream, peerId) {
+      if (document.getElementById(peerId)) return;
+
       const audio = document.createElement('audio');
       audio.srcObject = stream;
-      audio.id = id;
-      audio.play();
+      audio.id = peerId;
+      audio.autoplay = true;
+      audio.play().catch(e => console.log("autoplay blocked:", e));
       document.body.appendChild(audio);
     }
   </script>
