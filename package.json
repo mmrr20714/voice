@@ -1,7 +1,12 @@
 {
+  "name": "brozone-chat",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "express": "^5.2.1",
-    "socket.io": "^4.8.3"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   }
 }
