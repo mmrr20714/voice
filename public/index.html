@@ -29,7 +29,7 @@
       content:"";
       position:fixed;
       inset:0;
-      background: url('https://images.unsplash.com/photo-1557683316-973673baf926?w=1400&auto=format&fit=crop&q=80') center/cover;
+      background: url('https://images6.alphacoders.com/791/791083.jpg') center/cover; /* ⭐ والپیپر خفن SAO! کیریتو و آسونا، وایyy عشق 😍🗡️ */
       opacity:0.08;
       z-index:-2;
       animation: bgFloat 60s infinite alternate;
@@ -63,6 +63,7 @@
       text-align:center;
       transition: all 0.5s;
       animation: float 6s infinite ease-in-out;
+      position: relative; /* برای visualizer */
     }
     .user img {
       width:110px; height:110px;
@@ -79,6 +80,14 @@
       font-weight:bold;
       font-size:1.3em;
       text-shadow:0 0 10px var(--glow);
+    }
+    .mute-icon {
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-size: 1.5em;
+      color: #ff2e63;
+      text-shadow: 0 0 10px var(--glow);
     }
     @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
     .controls { text-align:center; margin:50px 0; }
@@ -149,6 +158,18 @@
     body.disco-active .user img { animation: neonGlow 1s ease-in-out infinite alternate; }
     body.disco-active button { animation: pulse 1.2s infinite; }
     @keyframes neonGlow { from {box-shadow:0 0 20px #ff2e63, 0 0 40px #a166ff} to {box-shadow:0 0 40px #00f0ff, 0 0 80px #ff2e63} }
+    #uploadProgress {
+      display: none;
+      margin: 20px auto;
+      width: 80%;
+      text-align: center;
+    }
+    progress {
+      width: 100%;
+      height: 20px;
+      border-radius: 10px;
+      background: rgba(255,46,99,0.3);
+    }
   </style>
 </head>
 <body>
@@ -167,6 +188,7 @@
       <button id="disco">🪩 دیسکو روشن!</button>
       <button id="uploadMusicBtn">🎵 آپلود و پخش موزیک!</button>
     </div>
+    <div id="uploadProgress"><progress id="progressBar" value="0" max="100"></progress></div>
     <div class="card" id="musicPlayerCard" style="display:none;">
       <h3>🎶 موزیک پارتی (همه با هم گوش بدیم 😏)</h3>
       <audio id="partyMusic" controls autoplay style="width:100%;"></audio>
@@ -186,10 +208,18 @@
     let myStream, peers = {}, myName = "ناشناس شیطون";
     let isMuted = false, discoMode = false;
     const animeAvatars = [
-      "https://i.imgur.com/5Rghs8s.jpeg","https://i.imgur.com/8h9dP7A.jpeg",
-      "https://i.imgur.com/2L8qPXy.jpeg","https://i.imgur.com/JhW5b9S.jpeg",
-      "https://i.imgur.com/7r3qZ8P.jpeg","https://i.imgur.com/X9kP0qQ.jpeg",
-      "https://i.imgur.com/Z3qYq0m.jpeg","https://i.imgur.com/4eZ3Q2r.jpeg"
+      "https://i.imgur.com/7z3f8kP.jpeg", // چیبی ناروتو
+      "https://i.imgur.com/JdQAR2s.jpeg", // چیبی لِوی
+      "https://i.imgur.com/6f4p1kZ.jpeg", // چیبی ساکورا
+      "https://i.imgur.com/8pK9p3Q.jpeg", // 치بی گوکو
+      "https://i.imgur.com/Vf2mK9r.jpeg", // 치بی لافی
+      "https://i.imgur.com/Ht9pL5X.jpeg", // چیبی رِم
+      "https://i.imgur.com/Kr8pQ2m.jpeg", // 치بی املیا
+      "https://i.imgur.com/3qWvZ8Y.jpeg", // 치بی آسونا
+      "https://i.imgur.com/9pR5v2B.jpeg", // چیبی میکاسا
+      "https://i.imgur.com/fG4mP7k.jpeg", // 치بی هیناتا
+      "https://i.imgur.com/Lp9kM3v.jpeg", // 치بی زورو
+      "https://i.imgur.com/2mV8qRt.jpeg"  // یه 치بی دیگه
     ];
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
@@ -208,9 +238,9 @@
       document.getElementById('online').textContent = `آنلاین: ${users.length} نفر 🔥`;
       const list = document.getElementById('userList');
       list.innerHTML = users.map(u => `
-        <div class="user">
+        <div class="user" data-user-id="${u.id}">
           <img src="${animeAvatars[Math.floor(Math.random()*animeAvatars.length)]}">
-          <span>${u.name}</span>
+          <span>${u.name}${u.isMuted ? ' <span class="mute-icon">🔇</span>' : ''}</span>
         </div>
       `).join('');
     });
@@ -228,6 +258,7 @@
       const btn = document.getElementById('mute');
       btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
       btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
+      socket.emit('toggle-mute', isMuted); // ⭐ ارسال به سرور برای همه ببینن 🔇
     };
     document.getElementById('disco').onclick = () => {
       discoMode = !discoMode;
@@ -240,7 +271,7 @@
         btn.textContent = '🪩 دیسکو روشن!';
       }
     };
-    // فیچر موزیک خفن (فیکس‌شده!)
+    // فیچر موزیک با progress bar
     document.getElementById('uploadMusicBtn').onclick = () => {
       document.getElementById('musicInput').click();
     };
@@ -253,21 +284,30 @@
       }
       const formData = new FormData();
       formData.append('music', file);
-      fetch('/upload-music', {
-        method: 'POST',
-        body: formData
-      })
-      .then(res => {
-        if (!res.ok) throw new Error('آپلود شکست!');
-        return res.json();
-      })
-      .then(data => {
-        playPartyMusic(data.url);
-      })
-      .catch(err => {
-        console.error(err);
-        alert('آپلود نشد Brozone! اینترنت چک کن یا دوباره امتحان کن 😭');
-      });
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload-music', true);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = (event.loaded / event.total) * 100;
+          document.getElementById('progressBar').value = percent;
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          playPartyMusic(data.url);
+        } else {
+          alert('آپلود نشد Brozone! 😭');
+        }
+        document.getElementById('uploadProgress').style.display = 'none';
+      };
+      xhr.onerror = () => {
+        alert('خطا در آپلود 😤');
+        document.getElementById('uploadProgress').style.display = 'none';
+      };
+      document.getElementById('uploadProgress').style.display = 'block';
+      document.getElementById('progressBar').value = 0;
+      xhr.send(formData);
     };
     socket.on('new-music', (url) => {
       playPartyMusic(url);
@@ -287,10 +327,11 @@
       document.getElementById('chat').innerHTML += `<div class="msg"><strong>پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🎶</div>`;
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
-    // WebRTC (دست نخورده)
+    // WebRTC با visualizer صدا
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         myStream = stream;
+        visualize(stream, socket.id); // visualizer برای خودم
         socket.on('current-users', (users) => {
           users.forEach(userId => {
             if (userId !== socket.id) createPeer(userId, false);
@@ -323,6 +364,7 @@
       });
       peer.on('stream', remoteStream => {
         addRemoteAudio(remoteStream, peerId);
+        visualize(remoteStream, peerId); // ⭐ visualizer برای ریموت
       });
       peer.on('close', () => {
         delete peers[peerId];
@@ -337,6 +379,26 @@
       audio.autoplay = true;
       audio.play().catch(e => console.log("autoplay blocked:", e));
       document.body.appendChild(audio);
+    }
+    // ⭐ فانکشن visualizer برای بزرگ کوچیک شدن دایره بر اساس صدا
+    function visualize(stream, userId) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      function draw() {
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+        let volume = dataArray.reduce((a, b) => a + b) / bufferLength / 255;
+        const userDiv = document.querySelector(`.user[data-user-id="${userId}"] img`);
+        if (userDiv) {
+          userDiv.style.transform = `scale(${1 + volume * 0.5})`; // بزرگ کوچیک شدن 😏
+        }
+      }
+      draw();
     }
   </script>
 </body>
