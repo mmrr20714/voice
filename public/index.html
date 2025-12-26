@@ -3,205 +3,166 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Brozone Voice Party 💜🪩</title>
+  <title>Brozone Voice Party 💜🪩✨</title>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@500;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@500;800&family=Cute+Font&display=swap" rel="stylesheet">
   <style>
-    :root { 
-      --neon: #ff4d80; /* صورتی نئونی خفن‌تر */
-      --purple: #b266ff; /* بنفش انیمه‌ای‌تر */
-      --bg: #0a0a1b; /* بک‌گراند تیره‌تر */
-      --card: #1e1e38; /* کارت‌ها شیک‌تر */
-      --holo: linear-gradient(45deg, rgba(255,77,128,0.5), rgba(178,102,255,0.5), rgba(0,255,255,0.5)); /* افکت هولوگرافیک */
+    :root {
+      --neon: #ff2e63;
+      --purple: #a166ff;
+      --cyan: #00f0ff;
+      --bg: #0d001a;
+      --card: #1a0033;
+      --glow: rgba(255,46,99,0.7);
     }
-    body { 
-      margin: 0; 
-      padding: 0; 
-      background: var(--bg); 
-      color: #fff; 
-      font-family: 'Vazirmatn', sans-serif; 
-      min-height: 100vh; 
-      transition: all 0.5s; 
-      overflow-x: hidden;
-    }
-    .container { 
-      max-width: 900px; 
-      margin: 0 auto; 
-      padding: 20px; 
-    }
-    h1 { 
-      font-size: 3.8em; 
-      text-align: center; 
-      background: var(--holo); 
-      -webkit-background-clip: text; 
-      -webkit-text-fill-color: transparent; 
-      margin: 30px 0; 
-      text-shadow: 0 0 20px rgba(255,77,128,0.7); 
-      animation: glowText 2s ease-in-out infinite alternate; 
-    }
-    @keyframes glowText { 
-      from { text-shadow: 0 0 20px rgba(255,77,128,0.7); } 
-      to { text-shadow: 0 0 40px rgba(178,102,255,0.7); } 
-    }
-    .card { 
-      background: var(--card); 
-      border-radius: 25px; 
-      padding: 25px; 
-      margin: 20px 0; 
-      box-shadow: 0 0 40px rgba(255,77,128,0.3); 
-      border: 1px solid var(--neon); 
-      transition: transform 0.3s; 
-    }
-    .card:hover { 
-      transform: scale(1.02); 
-    }
-    .users { 
-      display: flex; 
-      flex-wrap: wrap; 
-      gap: 20px; 
-      justify-content: center; 
-    }
-    .user { 
-      text-align: center; 
-      transition: 0.5s; 
-    }
-    .user img { 
-      width: 90px; 
-      height: 90px; 
-      border-radius: 50%; 
-      border: 5px solid var(--neon); 
-      transition: 0.5s; 
-      filter: drop-shadow(0 0 15px var(--purple)); 
-    }
-    .user img:hover { 
-      transform: rotate(10deg) scale(1.1); 
-      border-color: #00ffff; 
-    }
-    .user span { 
-      margin-top: 10px; 
-      font-weight: 800; 
-      font-size: 1.2em; 
-      text-shadow: 0 0 10px var(--neon); 
-    }
-    .controls { 
-      text-align: center; 
-      margin: 40px 0; 
-    }
-    button { 
-      background: var(--holo); 
-      color: white; 
-      border: none; 
-      padding: 18px 35px; 
-      margin: 15px; 
-      border-radius: 50px; 
-      font-size: 1.3em; 
-      font-weight: 800; 
-      cursor: pointer; 
-      transition: all 0.4s; 
-      box-shadow: 0 0 25px rgba(255,77,128,0.6); 
-      position: relative; 
-      overflow: hidden; 
-    }
-    button::before { 
-      content: ''; 
-      position: absolute; 
-      top: 0; 
-      left: -100%; 
-      width: 100%; 
-      height: 100%; 
-      background: var(--holo); 
-      transition: 0.5s; 
-    }
-    button:hover::before { 
-      left: 0; 
-    }
-    button:hover { 
-      transform: scale(1.15) rotate(5deg); 
-      box-shadow: 0 0 40px rgba(0,255,255,0.6); 
-    }
-    #disco { 
-      background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff); 
-      background-size: 300%; 
-      animation: discoButton 4s linear infinite; 
-    }
-    @keyframes discoButton { 
-      0% { background-position: 0% 50%; } 
-      100% { background-position: 300% 50%; } 
-    }
-    #chat { 
-      height: 250px; 
-      overflow-y: scroll; 
-      background: #16213e; 
-      padding: 20px; 
-      border-radius: 15px; 
-      margin-bottom: 15px; 
-      border: 1px solid var(--purple); 
-    }
-    input { 
-      padding: 18px; 
-      width: 75%; 
-      border-radius: 50px; 
-      border: none; 
-      background: #2a2a4e; 
-      color: white; 
-      font-size: 1.1em; 
-      box-shadow: 0 0 15px rgba(178,102,255,0.4); 
-      transition: 0.3s; 
-    }
-    input:focus { 
-      outline: none; 
-      box-shadow: 0 0 25px rgba(255,77,128,0.6); 
-    }
-    .msg { 
-      margin: 10px 0; 
-      padding: 12px; 
-      background: #2a2a4e; 
-      border-radius: 20px; 
-      max-width: 80%; 
-      align-self: flex-start; 
-      transition: 0.3s; 
-      animation: slideIn 0.3s ease-out; 
-    }
-    @keyframes slideIn { 
-      from { transform: translateX(50px); opacity: 0; } 
-      to { transform: translateX(0); opacity: 1; } 
-    }
-    .msg:hover { 
-      background: #3a3a6e; 
+    body {
+      margin:0; padding:0;
+      background: linear-gradient(135deg, #0d001a, #1a0033, #30004d);
+      color:#fff;
+      font-family:'Vazirmatn', sans-serif;
+      min-height:100vh;
+      overflow-x:hidden;
+      position:relative;
     }
 
-    /* دیسکو مود حالا خفن‌تره */
+    body::before {
+      content:"";
+      position:fixed;
+      inset:0;
+      background: url('https://images.unsplash.com/photo-1557683316-973673baf926?w=1400&auto=format&fit=crop&q=80') center/cover;
+      opacity:0.08;
+      z-index:-2;
+      animation: bgFloat 60s infinite alternate;
+    }
+    @keyframes bgFloat { 0%{transform:scale(1.1) translate(0,0)} 100%{transform:scale(1.2) translate(5%,5%)} }
+
+    .container { max-width:1000px; margin:0 auto; padding:20px; position:relative; z-index:1; }
+    h1 {
+      font-size:4.5em;
+      text-align:center;
+      background: linear-gradient(90deg, var(--neon), var(--purple), var(--cyan));
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      margin:40px 0;
+      text-shadow: 0 0 30px var(--glow);
+      animation: titlePulse 3s infinite alternate;
+    }
+    @keyframes titlePulse { from {transform:scale(1)} to {transform:scale(1.05)} }
+
+    .card {
+      background: rgba(26,0,51,0.7);
+      backdrop-filter: blur(10px);
+      border-radius:25px;
+      padding:30px;
+      margin:25px 0;
+      border:1px solid rgba(255,46,99,0.3);
+      box-shadow: 0 0 40px rgba(255,46,99,0.4), inset 0 0 20px rgba(161,102,255,0.2);
+      transition: all 0.4s;
+    }
+    .card:hover { transform: translateY(-10px); box-shadow: 0 0 60px var(--glow); }
+
+    .users { display:flex; flex-wrap:wrap; gap:25px; justify-content:center; }
+    .user {
+      text-align:center;
+      transition: all 0.5s;
+      animation: float 6s infinite ease-in-out;
+    }
+    .user img {
+      width:110px; height:110px;
+      border-radius:50%;
+      border:5px solid transparent;
+      background: linear-gradient(45deg, var(--neon), var(--purple));
+      padding:5px;
+      transition: all 0.4s;
+      box-shadow: 0 0 20px rgba(255,46,99,0.5);
+    }
+    .user:hover img { transform:scale(1.2) rotate(10deg); }
+    .user span {
+      margin-top:15px;
+      font-weight:bold;
+      font-size:1.3em;
+      text-shadow:0 0 10px var(--glow);
+    }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+
+    .controls { text-align:center; margin:50px 0; }
+    button {
+      background: linear-gradient(45deg, var(--neon), var(--purple));
+      color:white;
+      border:none;
+      padding:20px 45px;
+      margin:20px;
+      border-radius:50px;
+      font-size:1.5em;
+      cursor:pointer;
+      box-shadow: 0 0 30px var(--glow);
+      transition: all 0.4s;
+      position:relative;
+      overflow:hidden;
+    }
+    button::before {
+      content:"";
+      position:absolute;
+      inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: translateX(-100%);
+      transition: 0.7s;
+    }
+    button:hover::before { transform: translateX(100%); }
+    button:hover { transform:scale(1.15) rotate(5deg); box-shadow: 0 0 50px var(--glow); }
+
+    #chat {
+      height:300px;
+      overflow-y:scroll;
+      background: rgba(26,0,51,0.6);
+      padding:25px;
+      border-radius:20px;
+      margin-bottom:20px;
+      backdrop-filter: blur(8px);
+      border:1px solid rgba(0,240,255,0.2);
+    }
+    .msg {
+      margin:15px 0;
+      padding:15px;
+      background: rgba(161,102,255,0.2);
+      border-radius:20px;
+      max-width:80%;
+      backdrop-filter: blur(5px);
+      animation: msgPop 0.5s ease-out;
+    }
+    @keyframes msgPop { from {opacity:0; transform:translateY(20px)} to {opacity:1; transform:translateY(0)} }
+
+    input {
+      padding:20px;
+      width:75%;
+      border-radius:50px;
+      border:none;
+      background: rgba(255,255,255,0.1);
+      color:white;
+      font-size:1.3em;
+      backdrop-filter: blur(10px);
+      transition: all 0.4s;
+    }
+    input:focus { outline:none; box-shadow: 0 0 30px var(--glow); }
+
     body.disco-active {
       animation: discoBg 8s linear infinite;
-      background: linear-gradient(45deg, #0a0a1b, #2a1b60, #600b40, #1b0040, #0a0a1b);
-      background-size: 500% 500%;
     }
-    @keyframes discoBg { 
-      0% { background-position: 0% 50%; } 
-      50% { background-position: 100% 50%; } 
-      100% { background-position: 0% 50%; } 
+    @keyframes discoBg {
+      0%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+      100%{background-position:0% 50%}
     }
-    body.disco-active .user img { 
-      animation: neonGlow 1s ease-in-out infinite alternate; 
-    }
-    @keyframes neonGlow { 
-      from { box-shadow: 0 0 20px var(--neon), 0 0 30px var(--purple); } 
-      to { box-shadow: 0 0 40px #ff00ff, 0 0 60px #00ffff; } 
-    }
-    body.disco-active button { 
-      animation: pulse 1.3s infinite; 
-    }
-    @keyframes pulse { 
-      0% { transform: scale(1); } 
-      50% { transform: scale(1.12); } 
-      100% { transform: scale(1); } 
-    }
+    body.disco-active .user img { animation: neonGlow 1s ease-in-out infinite alternate; }
+    body.disco-active button { animation: pulse 1.2s infinite; }
+
+    @keyframes neonGlow { from {box-shadow:0 0 20px #ff2e63, 0 0 40px #a166ff} to {box-shadow:0 0 40px #00f0ff, 0 0 80px #ff2e63} }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Brozone Voice Party  🪩💜</h1>
+    <h1>Brozone Voice Party 💜🪩✨</h1>
 
     <div class="card">
       <input type="text" id="nameInput" placeholder="اسم انیمه‌ای شیطونیت چیه؟ 😈" maxlength="20">
@@ -216,6 +177,13 @@
     <div class="controls">
       <button id="mute">🔇 مات کردن میکروفون</button>
       <button id="disco">🪩 دیسکو روشن!</button>
+      <button id="uploadMusicBtn">🎵 آپلود و پخش موزیک!</button>
+    </div>
+
+    <div class="card" id="musicPlayerCard" style="display:none;">
+      <h3>🎶 موزیک پارتی (همه با هم گوش بدیم 😏)</h3>
+      <audio id="partyMusic" controls autoplay style="width:100%;"></audio>
+      <button onclick="document.getElementById('partyMusic').play()">▶ پلی دوباره</button>
     </div>
 
     <div class="card">
@@ -224,6 +192,8 @@
       <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
     </div>
   </div>
+
+  <input type="file" id="musicInput" accept="audio/*" style="display:none;">
 
   <audio id="joinSound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" preload="auto"></audio>
   <audio id="leaveSound" src="https://assets.mixkit.co/sfx/preview/mixkit-negative-answer-little-beep-932.mp3" preload="auto"></audio>
@@ -281,7 +251,7 @@
       myStream.getAudioTracks()[0].enabled = !isMuted;
       const btn = document.getElementById('mute');
       btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
-      btn.style.background = isMuted ? '#16213e' : 'var(--holo)';
+      btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
     };
 
     document.getElementById('disco').onclick = () => {
@@ -296,6 +266,43 @@
       }
     };
 
+    // فیچر موزیک خفن
+    document.getElementById('uploadMusicBtn').onclick = () => {
+      document.getElementById('musicInput').click();
+    };
+
+    document.getElementById('musicInput').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('music', file);
+
+      fetch('/upload-music', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        playPartyMusic(data.url);
+      })
+      .catch(err => alert('آپلود نشد Brozone! دوباره امتحان کن 😤'));
+    };
+
+    socket.on('new-music', (url) => {
+      playPartyMusic(url);
+    });
+
+    function playPartyMusic(url) {
+      const audio = document.getElementById('partyMusic');
+      audio.src = url;
+      audio.play().catch(e => console.log('autoplay blocked, پلی دستی بزن 😏'));
+      document.getElementById('musicPlayerCard').style.display = 'block';
+      document.getElementById('chat').innerHTML += `<div class="msg"><strong>پارتی:</strong> موزیک جدید پخش شد! 🎶</div>`;
+      document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    }
+
+    // WebRTC
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         myStream = stream;
