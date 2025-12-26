@@ -58,12 +58,17 @@ app.use((err, req, res, next) => {
 io.on('connection', (socket) => {
   console.log('یوزی جدید اومد پارتی:', socket.id);
   socket.username = "ناشناس شیطون";
+  socket.isMuted = false; // ⭐ وضعیت میوت اولیه
   socket.emit('current-users', Array.from(io.sockets.sockets.keys()).filter(id => id !== socket.id));
   socket.broadcast.emit('user-joined', socket.id);
   socket.emit('user-joined', socket.id);
   socket.on('set-name', (name) => {
     socket.username = name.trim() || "Brozone جون";
     io.emit('user-list', getUserList());
+  });
+  socket.on('toggle-mute', (muted) => {
+    socket.isMuted = muted;
+    io.emit('user-list', getUserList()); // ⭐ آپدیت لیست با میوت
   });
   socket.on('chat', (msg) => {
     io.emit('chat', { name: socket.username, msg });
@@ -80,7 +85,7 @@ io.on('connection', (socket) => {
 function getUserList() {
   const users = [];
   for (let s of io.sockets.sockets.values()) {
-    users.push({ id: s.id, name: s.username });
+    users.push({ id: s.id, name: s.username, isMuted: s.isMuted }); // ⭐ اضافه کردن isMuted
   }
   return users;
 }
