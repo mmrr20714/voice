@@ -422,10 +422,6 @@
         audio.play().catch(e => {
           console.log('Remote audio play failed:', e);
           // Fallback: hidden muted local برای unblock
-          const fallback = document.createElement('audio');
-          fallback.srcObject = myStream;
-          fallback.muted = true;
-          fallback.play().then(() => fallback.remove());
         });
       }
     }
