@@ -75,7 +75,7 @@
       border:5px solid transparent;
       background: linear-gradient(45deg, var(--neon), var(--purple));
       padding:5px;
-      transition: all 0.2s ease; /* سریع‌تر برای visualizer */
+      transition: all 0.15s ease; /* سریع‌تر برای visualizer */
       box-shadow: 0 0 20px rgba(255,46,99,0.5);
     }
     .user:hover img { transform:scale(1.2) rotate(10deg); }
@@ -111,7 +111,59 @@
       position:relative;
       overflow:hidden;
     }
-    /* بقیه استایل‌ها همون قبلی */
+    button::before {
+      content:"";
+      position:absolute;
+      inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: translateX(-100%);
+      transition: 0.7s;
+    }
+    button:hover::before { transform: translateX(100%); }
+    button:hover { transform:scale(1.15) rotate(5deg); box-shadow: 0 0 50px var(--glow); }
+    #chat {
+      height:300px;
+      overflow-y:scroll;
+      background: rgba(26,0,51,0.6);
+      padding:25px;
+      border-radius:20px;
+      margin-bottom:20px;
+      backdrop-filter: blur(8px);
+      border:1px solid rgba(0,240,255,0.2);
+    }
+    .msg {
+      margin:15px 0;
+      padding:15px;
+      background: rgba(161,102,255,0.2);
+      border-radius:20px;
+      max-width:80%;
+      backdrop-filter: blur(5px);
+      animation: msgPop 0.5s ease-out;
+    }
+    @keyframes msgPop { from {opacity:0; transform:translateY(20px)} to {opacity:1; transform:translateY(0)} }
+    input {
+      padding:20px;
+      width:75%;
+      border-radius:50px;
+      border:none;
+      background: rgba(255,255,255,0.1);
+      color:white;
+      font-size:1.3em;
+      backdrop-filter: blur(10px);
+      transition: all 0.4s;
+    }
+    input:focus { outline:none; box-shadow: 0 0 30px var(--glow); }
+    body.disco-active {
+      animation: discoBg 8s linear infinite;
+    }
+    @keyframes discoBg {
+      0%{background-position:0% 50%}
+      50%{background-position:100% 50%}
+      100%{background-position:0% 50%}
+    }
+    body.disco-active .user img { animation: neonGlow 1s ease-in-out infinite alternate; }
+    body.disco-active button { animation: pulse 1.2s infinite; }
+    @keyframes neonGlow { from {box-shadow:0 0 20px #ff2e63, 0 0 40px #a166ff} to {box-shadow:0 0 40px #00f0ff, 0 0 80px #ff2e63} }
     #uploadProgress {
       display: none;
       margin: 20px auto;
@@ -124,7 +176,6 @@
       border-radius: 10px;
       background: rgba(255,46,99,0.3);
     }
-    /* ... بقیه استایل‌ها کپی پیست شدن */
   </style>
 </head>
 <body>
@@ -155,45 +206,39 @@
       <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
     </div>
   </div>
+  <!-- Hidden audio for loopback test -->
+  <audio id="localAudio" style="display:none;"></audio>
   <input type="file" id="musicInput" accept="audio/*" style="display:none;">
   <audio id="joinSound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" preload="auto"></audio>
   <audio id="leaveSound" src="https://assets.mixkit.co/sfx/preview/mixkit-negative-answer-little-beep-932.mp3" preload="auto"></audio>
   <script>
     const socket = io();
     let myStream, peers = {}, myName = "ناشناس شیطون";
-    let isMuted = false, discoMode = false;
+    let isMuted = false, discoMode = false, userInteracted = false;
     const animeAvatars = [
-      "https://i.imgur.com/JdQAR2s.jpeg",
-      "https://i.imgur.com/6f4p1kZ.jpeg",
-      "https://i.imgur.com/8pK9p3Q.jpeg",
-      "https://i.imgur.com/Vf2mK9r.jpeg",
-      "https://i.imgur.com/Ht9pL5X.jpeg",
-      "https://i.imgur.com/Kr8pQ2m.jpeg",
-      "https://i.imgur.com/3qWvZ8Y.jpeg",
-      "https://i.imgur.com/9pR5v2B.jpeg",
-      "https://i.imgur.com/fG4mP7k.jpeg",
-      "https://i.imgur.com/Lp9kM3v.jpeg",
-      "https://i.imgur.com/2mV8qRt.jpeg",
-      "https://i.imgur.com/7z3f8kP.jpeg"
+      "https://i.imgur.com/JdQAR2s.jpeg", "https://i.imgur.com/6f4p1kZ.jpeg", "https://i.imgur.com/8pK9p3Q.jpeg",
+      "https://i.imgur.com/Vf2mK9r.jpeg", "https://i.imgur.com/Ht9pL5X.jpeg", "https://i.imgur.com/Kr8pQ2m.jpeg",
+      "https://i.imgur.com/3qWvZ8Y.jpeg", "https://i.imgur.com/9pR5v2B.jpeg", "https://i.imgur.com/fG4mP7k.jpeg",
+      "https://i.imgur.com/Lp9kM3v.jpeg", "https://i.imgur.com/2mV8qRt.jpeg", "https://i.imgur.com/7z3f8kP.jpeg"
     ];
-    // برای رندوم واقعی آواتار برای هر کاربر
-    const userAvatars = {}; // ذخیره آواتار هر کاربر
-
+    const userAvatars = {};
     function getRandomAvatar() {
       return animeAvatars[Math.floor(Math.random() * animeAvatars.length)];
     }
-
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
       socket.emit('set-name', myName);
       document.querySelector('.card input').style.display = 'none';
       document.querySelector('.card button').style.display = 'none';
+      userInteracted = true; // تعامل کاربر
+      initAudio(); // حالا صدارو init کن
     }
     function sendMsg() {
       const input = document.getElementById('msgInput');
       if (input.value.trim()) {
         socket.emit('chat', input.value);
         input.value = '';
+        userInteracted = true;
       }
     }
     function updateUserList(users) {
@@ -213,24 +258,27 @@
       }).join('');
     }
     socket.on('user-list', updateUserList);
-
     socket.on('chat', (data) => {
       const chat = document.getElementById('chat');
       chat.innerHTML += `<div class="msg"><strong>${data.name}:</strong> ${data.msg}</div>`;
       chat.scrollTop = chat.scrollHeight;
+      userInteracted = true;
     });
     socket.on('user-joined', () => document.getElementById('joinSound').play());
     socket.on('user-left', () => document.getElementById('leaveSound').play());
     document.getElementById('mute').onclick = () => {
       if (!myStream) return;
+      userInteracted = true; // تعامل
       isMuted = !isMuted;
       myStream.getAudioTracks()[0].enabled = !isMuted;
       const btn = document.getElementById('mute');
       btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
       btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
       socket.emit('toggle-mute', isMuted);
+      forcePlayAllAudio(); // force play بعد تعامل
     };
     document.getElementById('disco').onclick = () => {
+      userInteracted = true;
       discoMode = !discoMode;
       const btn = document.getElementById('disco');
       if (discoMode) {
@@ -241,8 +289,11 @@
         btn.textContent = '🪩 دیسکو روشن!';
       }
     };
-    // آپلود با progress
-    document.getElementById('uploadMusicBtn').onclick = () => document.getElementById('musicInput').click();
+    // آپلود با progress (همون قبلی)
+    document.getElementById('uploadMusicBtn').onclick = () => {
+      userInteracted = true;
+      document.getElementById('musicInput').click();
+    };
     document.getElementById('musicInput').onchange = (e) => {
       const file = e.target.files[0];
       if (!file || !file.type.startsWith('audio/')) {
@@ -265,7 +316,7 @@
           const data = JSON.parse(xhr.responseText);
           playPartyMusic(data.url);
         } else {
-          alert('آپلود نشد 😭 2');
+          alert('آپلود نشد 😭');
         }
       };
       document.getElementById('uploadProgress').style.display = 'block';
@@ -278,49 +329,78 @@
       audio.src = url;
       audio.volume = 0.8;
       audio.load();
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {}).catch(() => alert('پلی دستی بزن یا اجازه بده! 😏'));
+      if (userInteracted) {
+        audio.play().catch(e => console.log('music play error:', e));
       }
       document.getElementById('musicPlayerCard').style.display = 'block';
       document.getElementById('chat').innerHTML += `<div class="msg"><strong>پارتی:</strong> موزیک جدید! برقصین 🎉</div>`;
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
-    // WebRTC فیکس‌شده + visualizer قوی‌تر
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      myStream = stream;
-      addAudioStream(stream, socket.id); // برای خودم
-      visualize(stream, socket.id);
-      socket.on('current-users', users => users.forEach(uid => uid !== socket.id && createPeer(uid, false)));
-      socket.on('user-joined', newId => newId !== socket.id && createPeer(newId, true));
-      socket.on('user-left', leftId => {
-        if (peers[leftId]) peers[leftId].destroy();
+    // Init audio با permission چک
+    async function initAudio() {
+      try {
+        if (myStream) return;
+        myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Loopback test برای چک میکروفون
+        const localAudio = document.getElementById('localAudio');
+        localAudio.srcObject = myStream;
+        localAudio.muted = true; // hidden و muted
+        localAudio.play().catch(() => {});
+        addAudioStream(myStream, socket.id);
+        visualize(myStream, socket.id);
+        socket.emit('ready-for-peers'); // بگو آماده‌ای
+      } catch (err) {
+        console.error('Audio permission error:', err);
+        alert('میکروفون اجازه نداد Brozone! برو تنظیمات مرورگر و اجازه بده، بعد ریلود کن 😭');
+      }
+    }
+    // Force play همه audio بعد تعامل
+    function forcePlayAllAudio() {
+      document.querySelectorAll('audio').forEach(audio => {
+        if (audio.srcObject && audio.paused) {
+          audio.play().catch(e => console.log('force play failed:', e));
+        }
+      });
+    }
+    // WebRTC با SDP constraints
+    socket.on('current-users', users => {
+      if (!myStream) return;
+      users.forEach(uid => uid !== socket.id && createPeer(uid, false));
+    });
+    socket.on('user-joined', newId => {
+      if (!myStream) return;
+      if (newId !== socket.id) createPeer(newId, true);
+    });
+    socket.on('user-left', leftId => {
+      if (peers[leftId]) {
+        peers[leftId].destroy();
         delete peers[leftId];
-        delete userAvatars[leftId];
-        const audioEl = document.getElementById(leftId);
-        if (audioEl) audioEl.remove();
-      });
-      socket.on('signal', data => {
-        if (!peers[data.from]) createPeer(data.from, false);
-        peers[data.from].signal(data.signal);
-      });
-    }).catch(err => {
-      console.error(err);
-      alert('میکروفون رو اجازه بده Brozone! بدون صدا پارتی نمی‌شه 😭 ریستارت کن صفحه رو');
+      }
+      delete userAvatars[leftId];
+      const audioEl = document.getElementById(leftId);
+      if (audioEl) audioEl.remove();
+      updateUserList(getUserListFromSocket()); // آپدیت لیست
+    });
+    socket.on('signal', data => {
+      if (!peers[data.from]) createPeer(data.from, false);
+      peers[data.from].signal(data.signal);
     });
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
       const peer = new SimplePeer({
         initiator,
         stream: myStream,
-        trickle: false
+        trickle: false,
+        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }, // STUN اضافه
+        offerOptions: { offerToReceiveAudio: 1 } // SDP constraint برای audio
       });
       peer.on('signal', signal => socket.emit('signal', { to: peerId, signal }));
       peer.on('stream', remoteStream => {
+        console.log('Remote stream received:', remoteStream);
         addAudioStream(remoteStream, peerId);
         visualize(remoteStream, peerId);
       });
-      peer.on('error', err => console.log('peer error', err));
+      peer.on('error', err => console.log('Peer error:', err));
       peers[peerId] = peer;
     }
     function addAudioStream(stream, id) {
@@ -329,29 +409,54 @@
         audio = document.createElement('audio');
         audio.id = id;
         audio.autoplay = true;
+        audio.style.display = 'none';
         document.body.appendChild(audio);
       }
       audio.srcObject = stream;
-      audio.play().catch(() => console.log('autoplay blocked for remote'));
+      if (userInteracted) {
+        audio.play().catch(e => {
+          console.log('Remote audio play failed:', e);
+          // Fallback: hidden muted local برای unblock
+          const fallback = document.createElement('audio');
+          fallback.srcObject = myStream;
+          fallback.muted = true;
+          fallback.play().then(() => fallback.remove());
+        });
+      }
     }
     function visualize(stream, userId) {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = audioCtx.createAnalyser();
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
-      analyser.fftSize = 512; // حساس‌تر
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      function draw() {
-        requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
-        const volume = dataArray.reduce((a,b) => a+b) / bufferLength;
-        const scale = 1 + (volume / 255) * 0.8; // قوی‌تر
-        const img = document.querySelector(`.user[data-user-id="${userId}"] img`);
-        if (img) img.style.transform = `scale(${scale})`;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume(); // resume اگر suspended
+        }
+        const analyser = audioCtx.createAnalyser();
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+        analyser.fftSize = 512;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        function draw() {
+          requestAnimationFrame(draw);
+          analyser.getByteFrequencyData(dataArray);
+          const volume = dataArray.reduce((a, b) => a + b) / bufferLength;
+          const scale = 1 + (volume / 255) * 1.2; // قوی‌تر!
+          const img = document.querySelector(`.user[data-user-id="${userId}"] img`);
+          if (img) {
+            img.style.transform = `scale(${Math.min(scale, 1.8)})`; // max scale محدود
+          }
+        }
+        draw();
+      } catch (e) {
+        console.log('Visualizer error:', e);
       }
-      draw();
     }
+    // Listen for ready
+    socket.on('ready-for-peers', () => {
+      if (myStream) {
+        socket.emit('current-users', Array.from(io.sockets.sockets.keys()).filter(id => id !== socket.id));
+      }
+    });
   </script>
 </body>
 </html>
