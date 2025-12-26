@@ -9,15 +9,6 @@ io.on('connection', (socket) => {
   console.log('یوزی جدید اومد پارتی:', socket.id);
   socket.username = "ناشناس شیطون";
 
-  // به خودش لیست کاربرهای فعلی رو بده (بدون خودش)
-  socket.emit('current-users', Array.from(io.sockets.sockets.keys()).filter(id => id !== socket.id));
-
-  // به همه بگو یکی جدید اومد (با آیدی)
-  socket.broadcast.emit('user-joined', socket.id);
-
-  // به خودش هم بگو که سوند جوین پخش کنه
-  socket.emit('user-joined', socket.id);
-
   socket.on('set-name', (name) => {
     socket.username = name.trim() || "Brozone جون";
     io.emit('user-list', getUserList());
@@ -26,6 +17,9 @@ io.on('connection', (socket) => {
   socket.on('chat', (msg) => {
     io.emit('chat', { name: socket.username, msg });
   });
+
+  socket.broadcast.emit('user-joined');
+  socket.emit('user-list', getUserList());
 
   socket.on('signal', (data) => {
     socket.to(data.to).emit('signal', { from: socket.id, signal: data.signal });
@@ -45,5 +39,5 @@ function getUserList() {
   return users;
 }
 
-const PORT = process.env.PORT || 25565;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`پارتی Brozone رو پورت ${PORT} استارت شد! 🔥🪩`));
