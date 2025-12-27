@@ -207,19 +207,21 @@
     const socket = io();
     let myStream, peers = {}, myName = "ناشناس شیطون";
     let isMuted = false, discoMode = false;
+    let isHost = false;           // ⭐ جدید: فقط آپلودکننده host و کنترل داره
+    let partyAudio = null;        // ⭐ اشاره به audio برای sync
     const animeAvatars = [
       "https://i.imgur.com/7z3f8kP.jpeg", // چیبی ناروتو
       "https://i.imgur.com/JdQAR2s.jpeg", // چیبی لِوی
       "https://i.imgur.com/6f4p1kZ.jpeg", // چیبی ساکورا
-      "https://i.imgur.com/8pK9p3Q.jpeg", // 치بی گوکو
-      "https://i.imgur.com/Vf2mK9r.jpeg", // 치بی لافی
+      "https://i.imgur.com/8pK9p3Q.jpeg", // چیبی گوکو
+      "https://i.imgur.com/Vf2mK9r.jpeg", // چیبی لافی
       "https://i.imgur.com/Ht9pL5X.jpeg", // چیبی رِم
-      "https://i.imgur.com/Kr8pQ2m.jpeg", // 치بی املیا
-      "https://i.imgur.com/3qWvZ8Y.jpeg", // 치بی آسونا
+      "https://i.imgur.com/Kr8pQ2m.jpeg", // چیبی املیا
+      "https://i.imgur.com/3qWvZ8Y.jpeg", // چیبی آسونا
       "https://i.imgur.com/9pR5v2B.jpeg", // چیبی میکاسا
-      "https://i.imgur.com/fG4mP7k.jpeg", // 치بی هیناتا
-      "https://i.imgur.com/Lp9kM3v.jpeg", // 치بی زورو
-      "https://i.imgur.com/2mV8qRt.jpeg"  // یه 치بی دیگه
+      "https://i.imgur.com/fG4mP7k.jpeg", // چیبی هیناتا
+      "https://i.imgur.com/Lp9kM3v.jpeg", // چیبی زورو
+      "https://i.imgur.com/2mV8qRt.jpeg" // یه چیبی دیگه
     ];
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
@@ -258,7 +260,7 @@
       const btn = document.getElementById('mute');
       btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
       btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
-      socket.emit('toggle-mute', isMuted); // ⭐ ارسال به سرور برای همه ببینن 🔇
+      socket.emit('toggle-mute', isMuted);
     };
     document.getElementById('disco').onclick = () => {
       discoMode = !discoMode;
@@ -295,7 +297,8 @@
       xhr.onload = () => {
         if (xhr.status === 200) {
           const data = JSON.parse(xhr.responseText);
-          playPartyMusic(data.url);
+          isHost = true;  // ⭐ فقط آپلودکننده host میشه
+          playPartyMusic(data.url, { playing: true, currentTime: 0 });
         } else {
           alert('آپلود نشد Brozone! 😭');
         }
@@ -309,24 +312,46 @@
       document.getElementById('progressBar').value = 0;
       xhr.send(formData);
     };
-    socket.on('new-music', (url) => {
-      playPartyMusic(url);
-    });
-    function playPartyMusic(url) {
-      const audio = document.getElementById('partyMusic');
-      audio.src = url;
-      audio.volume = 0.8;
-      audio.load();
-      audio.play().then(() => {
-        console.log('موزیک پلی شد 🔥');
-      }).catch(e => {
-        console.log('اتوپلی بلاک شد، دستی بزن 😤', e);
-        alert('مرورگرت اتوپلی بلاک کرد، رو پلی بزن!');
-      });
+    
+    // ⭐ تابع جدید playPartyMusic برای sync رادیو
+    function playPartyMusic(url, state) {
+      partyAudio = document.getElementById('partyMusic');
+      partyAudio.src = url;
+
+      // controls فقط برای host نشون بده (برای حس رادیو زنده بیشتر، می‌تونی false کنی)
+      partyAudio.controls = isHost;
+
+      partyAudio.currentTime = state.currentTime || 0;
+
+      if (state.playing) {
+        partyAudio.play().catch(() => {});
+      } else {
+        partyAudio.pause();
+      }
+
       document.getElementById('musicPlayerCard').style.display = 'block';
-      document.getElementById('chat').innerHTML += `<div class="msg"><strong>پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🎶</div>`;
+      
+      document.getElementById('chat').innerHTML += 
+        `<div class="msg"><strong>رادیو پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🔥</div>`;
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
+
+    // ⭐ listenerهای جدید برای sync
+    socket.on('music-sync', ({url, state}) => {
+      playPartyMusic(url, state);
+    });
+
+    socket.on('music-state-update', (state) => {
+      if (!partyAudio) return;
+      
+      if (Math.abs(partyAudio.currentTime - state.currentTime) > 0.5) {
+        partyAudio.currentTime = state.currentTime;
+      }
+      
+      if (state.playing && partyAudio.paused) partyAudio.play();
+      if (!state.playing && !partyAudio.paused) partyAudio.pause();
+    });
+
     // WebRTC با visualizer صدا
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
@@ -355,17 +380,16 @@
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
       const peer = new SimplePeer({
-  initiator,
-  stream: myStream,
-  trickle: false,
-  config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-  }
-});
-
+        initiator,
+        stream: myStream,
+        trickle: false,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      });
       peer.on('signal', signal => {
         socket.emit('signal', { to: peerId, signal });
       });
@@ -407,6 +431,16 @@
       }
       draw();
     }
+
+    // ⭐ هر ۲ ثانیه وضعیت رو از host بفرست برای sync
+    setInterval(() => {
+      if (isHost && partyAudio) {
+        socket.emit('music-state-update', {
+          playing: !partyAudio.paused,
+          currentTime: partyAudio.currentTime
+        });
+      }
+    }, 2000);
   </script>
 </body>
 </html>
