@@ -8,7 +8,7 @@
   <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@500;800&family=Cute+Font&display=swap" rel="stylesheet">
   <style>
-    /* همون استایل‌های قبلی‌ت – بدون تغییر */
+    /* استایل‌های قبلی بدون تغییر */
     :root {
       --neon: #ff2e63;
       --purple: #a166ff;
@@ -220,6 +220,35 @@
       animation: labelFloat 3s infinite ease-in-out;
     }
     @keyframes labelFloat { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-10px)} }
+
+    /* بخش جدید برای عکس دختر انیمه‌ای */
+    .anime-girl-section {
+      text-align:center;
+      margin:40px 0;
+      padding:20px;
+      background: rgba(26,0,51,0.6);
+      border-radius:28px;
+      backdrop-filter: blur(10px);
+      border:1px solid var(--purple);
+      box-shadow: 0 0 40px var(--glow);
+    }
+    .anime-girl-section img {
+      max-width:400px;
+      width:90%;
+      border-radius:30px;
+      box-shadow: 0 0 50px var(--purple);
+      animation: float 5s infinite ease-in-out;
+    }
+    .anime-girl-caption {
+      margin-top:20px;
+      font-size:1.5em;
+      text-shadow:0 0 15px var(--glow);
+    }
+    .anime-girl-desc {
+      margin-top:15px;
+      font-size:1.2em;
+      opacity:0.9;
+    }
   </style>
 </head>
 <body>
@@ -233,19 +262,19 @@
       <div id="online">آنلاین: ۱ نفر (تو تنهایی فعلاً 😂)</div>
       <div class="users" id="userList"></div>
     </div>
-  
+ 
     <div class="card" id="screenShareCard">
       <h3 style="text-align:center;">👀 صفحه‌های شیطون در حال اشتراک 🖥️💥</h3>
       <div id="screenContainer"></div>
     </div>
-  
+ 
     <div class="controls">
       <button id="mute">🔇 مات کردن میکروفون</button>
       <button id="disco">🪩 دیسکو روشن!</button>
       <button id="shareScreen">📺 اشتراک صفحه</button>
       <button id="uploadMusicBtn">🎵 آپلود و پخش موزیک!</button>
     </div>
-  
+ 
     <div id="uploadProgress"><progress id="progressBar" value="0" max="100"></progress></div>
     <div class="card" id="musicPlayerCard" style="display:none;">
       <h3>🎶 موزیک پارتی (همه با هم گوش بدیم 😏)</h3>
@@ -256,6 +285,16 @@
       <h3>چت متنی (که داد نزنیم 😏)</h3>
       <div id="chat"></div>
       <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
+    </div>
+
+    <!-- بخش جدید دختر انیمه‌ای زیر چت -->
+    <div class="anime-girl-section card">
+      <img src="image/gol.png" alt="دختر شیطون انیمه‌ای 💜🌸">
+      <div class="anime-girl-caption">منم، نگهبان پارتی شیطون‌ها 😈✨</div>
+      <div class="anime-girl-desc">
+        اینجا Brozone Voice Partyئه! وویس چت کن، صفحه شیر کن، موزیک پخش کن، دیسکو بزن و نیش بنداز 😏<br>
+        همه شیطون‌های انیمه‌ای خوش اومدین! هدفون بذارین و پارتی شروع شه 🎉🔥
+      </div>
     </div>
   </div>
   <input type="file" id="musicInput" accept="audio/*" style="display:none;">
@@ -269,9 +308,9 @@
     let partyAudio = null;
     let screenStream = null;
     let isSharingScreen = false;
-    let users = {}; // برای ذخیره نام کاربران
+    let users = {};
     let myScreenWrapperId = 'wrapper-local';
-
+    let dummyVideoTrack = null; // برای dummy
     const animeAvatars = [
       "https://wallpapers-clan.com/wp-content/uploads/2025/05/pensive-anime-girl-neon-lights-desktop-wallpaper-preview.jpg",
       "https://wallpapers.com/images/hd/neon-anime-girl-character-akali-bnoolkx6m0az4bkt.jpg",
@@ -284,14 +323,12 @@
       "https://i.imgur.com/p9IBeg.jpg",
       "https://i.imgur.com/WcGYryf.jpeg"
     ];
-
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
       socket.emit('set-name', myName);
       document.querySelector('.card input').style.display = 'none';
       document.querySelector('.card button').style.display = 'none';
     }
-
     function sendMsg() {
       const input = document.getElementById('msgInput');
       if (input.value.trim()) {
@@ -299,7 +336,6 @@
         input.value = '';
       }
     }
-
     socket.on('user-list', (userList) => {
       users = userList.reduce((acc, u) => ({...acc, [u.id]: u.name}), {});
       document.getElementById('online').textContent = `آنلاین: ${userList.length} نفر 🔥`;
@@ -311,16 +347,13 @@
         </div>
       `).join('');
     });
-
     socket.on('chat', (data) => {
       const chat = document.getElementById('chat');
       chat.innerHTML += `<div class="msg"><strong>${data.name}:</strong> ${data.msg}</div>`;
       chat.scrollTop = chat.scrollHeight;
     });
-
     socket.on('user-joined', () => document.getElementById('joinSound').play());
     socket.on('user-left', () => document.getElementById('leaveSound').play());
-
     document.getElementById('mute').onclick = () => {
       if (!myStream) return;
       isMuted = !isMuted;
@@ -330,7 +363,6 @@
       btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
       socket.emit('toggle-mute', isMuted);
     };
-
     document.getElementById('disco').onclick = () => {
       discoMode = !discoMode;
       const btn = document.getElementById('disco');
@@ -342,41 +374,35 @@
         btn.textContent = '🪩 دیسکو روشن!';
       }
     };
-
     document.getElementById('shareScreen').onclick = async () => {
       if (!isSharingScreen) {
         try {
           screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
           const screenTrack = screenStream.getVideoTracks()[0];
 
-          // پیش‌نمایش محلی برای خودت
+          // پیش‌نمایش محلی
           document.getElementById('screenShareCard').style.display = 'block';
           if (!document.getElementById(myScreenWrapperId)) {
             const wrapper = document.createElement('div');
             wrapper.className = 'screen-wrapper';
             wrapper.id = myScreenWrapperId;
-
             const video = document.createElement('video');
             video.srcObject = screenStream;
             video.autoplay = true;
             video.playsInline = true;
-
             const label = document.createElement('div');
             label.className = 'screen-label';
             label.textContent = 'تو داری share می‌کنی 😈';
-
             wrapper.appendChild(video);
             wrapper.appendChild(label);
-            document.getElementById('screenContainer').prepend(wrapper); // بالا بذار که اول خودت ببینی
+            document.getElementById('screenContainer').prepend(wrapper);
           }
 
-          // ارسال به peerها
+          // replace dummy با screen واقعی
           Object.values(peers).forEach(peer => {
-            const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video');
-            if (sender) {
-              sender.replaceTrack(screenTrack);
-            } else {
-              peer._pc.addTrack(screenTrack, screenStream);
+            const videoSender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (videoSender) {
+              videoSender.replaceTrack(screenTrack);
             }
           });
 
@@ -390,60 +416,54 @@
         stopScreenShare();
       }
     };
-
     function stopScreenShare() {
       if (!screenStream) return;
 
-      // پاک کردن پیش‌نمایش محلی
       const localWrapper = document.getElementById(myScreenWrapperId);
       if (localWrapper) localWrapper.remove();
+
+      // برگردون به dummy
+      Object.values(peers).forEach(peer => {
+        const videoSender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (videoSender && dummyVideoTrack) {
+          videoSender.replaceTrack(dummyVideoTrack);
+        }
+      });
 
       screenStream.getTracks().forEach(t => t.stop());
       screenStream = null;
       isSharingScreen = false;
       document.getElementById('shareScreen').textContent = '📺 اشتراک صفحه';
 
-      // قطع ارسال به peerها
-      Object.values(peers).forEach(peer => {
-        const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (sender) sender.replaceTrack(null);
-      });
-
-      // اگه هیچ شیر دیگه‌ای نبود، کارت رو مخفی کن
       if (document.getElementById('screenContainer').children.length === 0) {
         document.getElementById('screenShareCard').style.display = 'none';
       }
     }
-
     function addRemoteScreen(stream, peerId) {
       document.getElementById('screenShareCard').style.display = 'block';
       if (document.getElementById('wrapper-' + peerId)) return;
-    
+   
       const wrapper = document.createElement('div');
       wrapper.className = 'screen-wrapper';
       wrapper.id = 'wrapper-' + peerId;
-    
+   
       const video = document.createElement('video');
       video.id = 'screen-' + peerId;
       video.srcObject = stream;
       video.autoplay = true;
       video.playsInline = true;
-    
+   
       const label = document.createElement('div');
       label.className = 'screen-label';
       label.textContent = `${users[peerId] || 'شیطون ناشناس'} داره share می‌کنه 😏`;
-    
+   
       wrapper.appendChild(video);
       wrapper.appendChild(label);
       document.getElementById('screenContainer').appendChild(wrapper);
     }
-
-    // بقیه کد (upload music, peers, visualize و ...) دقیقاً مثل قبلی
-
     document.getElementById('uploadMusicBtn').onclick = () => {
       document.getElementById('musicInput').click();
     };
-
     document.getElementById('musicInput').onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -479,7 +499,6 @@
       document.getElementById('progressBar').value = 0;
       xhr.send(formData);
     };
-
     function playPartyMusic(url, state) {
       partyAudio = document.getElementById('partyMusic');
       partyAudio.src = url;
@@ -494,9 +513,7 @@
       document.getElementById('chat').innerHTML += `<div class="msg"><strong>رادیو پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🔥</div>`;
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
-
     socket.on('music-sync', ({url, state}) => playPartyMusic(url, state));
-
     socket.on('music-state-update', (state) => {
       if (!partyAudio) return;
       if (Math.abs(partyAudio.currentTime - state.currentTime) > 0.5) {
@@ -505,22 +522,33 @@
       if (state.playing && partyAudio.paused) partyAudio.play();
       if (!state.playing && !partyAudio.paused) partyAudio.pause();
     });
-
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         myStream = stream;
-        visualize(stream, socket.id);
-      
+
+        // dummy video track
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const dummyStream = canvas.captureStream(1);
+        dummyVideoTrack = dummyStream.getVideoTracks()[0];
+        myStream.addTrack(dummyVideoTrack);
+
+        visualize(stream, socket.id); // visualize فقط audio
+
         socket.on('current-users', (users) => {
           users.forEach(userId => {
             if (userId !== socket.id) createPeer(userId, false);
           });
         });
-      
+     
         socket.on('user-joined', (newUserId) => {
           if (newUserId !== socket.id) createPeer(newUserId, true);
         });
-      
+     
         socket.on('user-left', (leftId) => {
           if (peers[leftId]) {
             peers[leftId].destroy();
@@ -532,14 +560,13 @@
             document.getElementById('screenShareCard').style.display = 'none';
           }
         });
-      
+     
         socket.on('signal', (data) => {
           if (!peers[data.from]) createPeer(data.from, false);
           peers[data.from].signal(data.signal);
         });
       })
       .catch(() => alert('میکروفون بده دیگه Brozone! 😤 بدون صدا پارتی نمیشه که 😭'));
-
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
       const peer = new SimplePeer({
@@ -549,27 +576,32 @@
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:openrelay.metered.ca:80' },
+            {
+              urls: 'turn:openrelay.metered.ca:443',
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            }
           ]
         }
       });
-    
+   
       peer.on('signal', signal => socket.emit('signal', { to: peerId, signal }));
-    
+   
       peer.on('stream', remoteStream => {
-        if (remoteStream.getVideoTracks().length > 0) {
+        if (remoteStream.getVideoTracks().length > 0 && remoteStream.getVideoTracks()[0].enabled) {
           addRemoteScreen(remoteStream, peerId);
         } else {
           addRemoteAudio(remoteStream, peerId);
           visualize(remoteStream, peerId);
         }
       });
-    
+   
       peer.on('close', () => delete peers[peerId]);
-    
+   
       peers[peerId] = peer;
     }
-
     function addRemoteAudio(stream, peerId) {
       if (document.getElementById(peerId)) return;
       const audio = document.createElement('audio');
@@ -579,7 +611,6 @@
       audio.play().catch(e => console.log("autoplay blocked:", e));
       document.body.appendChild(audio);
     }
-
     function visualize(stream, userId) {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioCtx.createMediaStreamSource(stream);
@@ -588,7 +619,7 @@
       source.connect(analyser);
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-    
+   
       function draw() {
         requestAnimationFrame(draw);
         analyser.getByteFrequencyData(dataArray);
@@ -600,7 +631,6 @@
       }
       draw();
     }
-
     setInterval(() => {
       if (isHost && partyAudio) {
         socket.emit('music-state-update', {
