@@ -5,16 +5,13 @@ const io = require('socket.io')(server);
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
 // مهم! موزیک‌ها درست سرو بشن
 app.use('/music', express.static(path.join(__dirname, 'public/music')));
 app.use(express.static('public'));
-
 // فولدر موزیک
 if (!fs.existsSync('./public/music')) {
   fs.mkdirSync('./public/music', { recursive: true });
 }
-
 const storage = multer.diskStorage({
   destination: './public/music/',
   filename: (req, file, cb) => {
@@ -22,8 +19,7 @@ const storage = multer.diskStorage({
     cb(null, unique + path.extname(file.originalname));
   }
 });
-
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // max 50MB
   fileFilter: (req, file, cb) => {
@@ -35,15 +31,24 @@ const upload = multer({
   }
 });
 
+// ⭐ جدید: متغیرهای sync رادیو
+let currentMusic = null;
+let currentMusicState = { playing: false, currentTime: 0 };
+
 app.post('/upload-music', upload.single('music'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'فایلی آپلود نشد' });
   }
   const musicUrl = '/music/' + req.file.filename;
-  io.emit('new-music', musicUrl);
+
+  // ⭐ موزیک جدید = همه از صفر و sync
+  currentMusic = musicUrl;
+  currentMusicState = { playing: true, currentTime: 0 };
+
+  io.emit('music-sync', { url: musicUrl, state: currentMusicState });
+
   res.json({ url: musicUrl });
 });
-
 // هندل ارورهای multer
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -54,11 +59,16 @@ app.use((err, req, res, next) => {
     next();
   }
 });
-
 io.on('connection', (socket) => {
   console.log('یوزی جدید اومد پارتی:', socket.id);
   socket.username = "ناشناس شیطون";
   socket.isMuted = false; // ⭐ وضعیت میوت اولیه
+
+  // ⭐ اگر موزیک در حال پخش بود، به تازه‌وارد بفرست
+  if (currentMusic) {
+    socket.emit('music-sync', { url: currentMusic, state: currentMusicState });
+  }
+
   socket.emit('current-users', Array.from(io.sockets.sockets.keys()).filter(id => id !== socket.id));
   socket.broadcast.emit('user-joined', socket.id);
   socket.emit('user-joined', socket.id);
@@ -76,12 +86,18 @@ io.on('connection', (socket) => {
   socket.on('signal', (data) => {
     socket.to(data.to).emit('signal', { from: socket.id, signal: data.signal });
   });
+
+  // ⭐ دریافت آپدیت از host و پخش به بقیه
+  socket.on('music-state-update', (newState) => {
+    currentMusicState = newState;
+    socket.broadcast.emit('music-state-update', newState);
+  });
+
   socket.on('disconnect', () => {
     io.emit('user-left');
     io.emit('user-list', getUserList());
   });
 });
-
 function getUserList() {
   const users = [];
   for (let s of io.sockets.sockets.values()) {
@@ -89,6 +105,5 @@ function getUserList() {
   }
   return users;
 }
-
 const PORT = process.env.PORT || 25565;
 server.listen(PORT, () => console.log(`پارتی Brozone رو پورت ${PORT} استارت شد! 🔥🪩🎶`));
