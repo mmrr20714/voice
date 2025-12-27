@@ -172,8 +172,6 @@
       border-radius: 10px;
       background: rgba(255,46,99,0.3);
     }
-
-    /* ⭐ استایل‌های خفن Share Screen */
     #screenShareCard {
       display:none;
       animation: cardPop 0.6s ease-out;
@@ -234,19 +232,19 @@
       <div id="online">آنلاین: ۱ نفر (تو تنهایی فعلاً 😂)</div>
       <div class="users" id="userList"></div>
     </div>
-   
+  
     <div class="card" id="screenShareCard">
       <h3 style="text-align:center;">👀 صفحه‌های شیطون در حال اشتراک 🖥️💥</h3>
       <div id="screenContainer"></div>
     </div>
-   
+  
     <div class="controls">
       <button id="mute">🔇 مات کردن میکروفون</button>
       <button id="disco">🪩 دیسکو روشن!</button>
       <button id="shareScreen">📺 اشتراک صفحه</button>
       <button id="uploadMusicBtn">🎵 آپلود و پخش موزیک!</button>
     </div>
-   
+  
     <div id="uploadProgress"><progress id="progressBar" value="0" max="100"></progress></div>
     <div class="card" id="musicPlayerCard" style="display:none;">
       <h3>🎶 موزیک پارتی (همه با هم گوش بدیم 😏)</h3>
@@ -259,11 +257,9 @@
       <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
     </div>
   </div>
- 
   <input type="file" id="musicInput" accept="audio/*" style="display:none;">
   <audio id="joinSound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" preload="auto"></audio>
   <audio id="leaveSound" src="https://assets.mixkit.co/sfx/preview/mixkit-negative-answer-little-beep-932.mp3" preload="auto"></audio>
- 
   <script>
     const socket = io();
     let myStream, peers = {}, myName = "ناشناس شیطون";
@@ -272,32 +268,30 @@
     let partyAudio = null;
     let screenStream = null;
     let isSharingScreen = false;
-   
+    let users = {}; // برای ذخیره نام کاربران
+
     const animeAvatars = [
-      "https://i.imgur.com/7z3f8kP.jpeg",
-      "https://i.imgur.com/JdQAR2s.jpeg",
-      "https://i.imgur.com/6f4p1kZ.jpeg",
-      "https://i.imgur.com/8pK9p3Q.jpeg",
-      "https://i.imgur.com/Vf2mK9r.jpeg",
-      "https://i.imgur.com/Ht9pL5X.jpeg",
-      "https://i.imgur.com/Kr8pQ2m.jpeg",
-      "https://i.imgur.com/3qWvZ8Y.jpeg",
-      "https://i.imgur.com/9pR5v2B.jpeg",
-      "https://i.imgur.com/fG4mP7k.jpeg",
-      "https://i.imgur.com/Lp9kM3v.jpeg",
-      "https://i.imgur.com/2mV8qRt.jpeg",
-      "https://i.pinimg.com/564x/f1/e0/3f/f1e03fa1e856886bbe9d328064761131.jpg",
-      "https://i.ytimg.com/vi/newcvoVZKXE/hqdefault.jpg",
-      "https://wallpapercave.com/wp/wp10123124.jpg"
+      "https://wallpapers-clan.com/wp-content/uploads/2025/05/pensive-anime-girl-neon-lights-desktop-wallpaper-preview.jpg",
+      "https://wallpapers.com/images/hd/neon-anime-girl-character-akali-bnoolkx6m0az4bkt.jpg",
+      "https://wallpapercave.com/wp/wp15206511.jpg",
+      "https://wallpapers.com/images/hd/neon-anime-girl-with-transparent-umbrella-85hipbveh99m1cpk.jpg",
+      "https://wallpapers-clan.com/wp-content/uploads/2024/08/anime-neon-glow-girl-desktop-wallpaper-preview.jpg",
+      "https://wallpapers.com/images/hd/neon-anime-girl-hatsune-miku-w0kd1i5w5cmwb3zv.jpg",
+      "https://img.freepik.com/premium-photo/cyberpunk-aesthetics-technology-futuristic-background_621955-46770.jpg",
+      "https://thumbs.dreamstime.com/b/anime-girl-headphones-listening-to-music-gamer-style-digital-art-neon-lights-aesthetic-wallpaper-lit-cityscape-elements-378004567.jpg",
+      "https://thumbs.dreamstime.com/b/neon-cyberpunk-girl-futuristic-city-glowing-hair-vibrant-colors-styled-anime-sits-wet-reflective-surface-lit-her-long-388807653.jpg",
+      "https://images.stockcake.com/public/b/a/6/ba676810-9a1b-4061-8c25-e386e7da9381_large/neon-cyberpunk-girl-stockcake.jpg",
+      "https://i.imgur.com/p9IBeg.jpg",
+      "https://i.imgur.com/WcGYryf.jpeg"
     ];
-   
+
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
       socket.emit('set-name', myName);
       document.querySelector('.card input').style.display = 'none';
       document.querySelector('.card button').style.display = 'none';
     }
-   
+
     function sendMsg() {
       const input = document.getElementById('msgInput');
       if (input.value.trim()) {
@@ -305,27 +299,28 @@
         input.value = '';
       }
     }
-   
-    socket.on('user-list', (users) => {
-      document.getElementById('online').textContent = `آنلاین: ${users.length} نفر 🔥`;
+
+    socket.on('user-list', (userList) => {
+      users = userList.reduce((acc, u) => ({...acc, [u.id]: u.name}), {});
+      document.getElementById('online').textContent = `آنلاین: ${userList.length} نفر 🔥`;
       const list = document.getElementById('userList');
-      list.innerHTML = users.map(u => `
+      list.innerHTML = userList.map(u => `
         <div class="user" data-user-id="${u.id}">
-          <img src="${animeAvatars[Math.floor(Math.random()*animeAvatars.length)]}">
+          <img src="${animeAvatars[Math.floor(Math.random()*animeAvatars.length)]}" onerror="this.src='https://wallpapers.com/images/hd/neon-anime-girl-hatsune-miku-w0kd1i5w5cmwb3zv.jpg'">
           <span>${u.name}${u.isMuted ? ' <span class="mute-icon">🔇</span>' : ''}</span>
         </div>
       `).join('');
     });
-   
+
     socket.on('chat', (data) => {
       const chat = document.getElementById('chat');
       chat.innerHTML += `<div class="msg"><strong>${data.name}:</strong> ${data.msg}</div>`;
       chat.scrollTop = chat.scrollHeight;
     });
-   
+
     socket.on('user-joined', () => document.getElementById('joinSound').play());
     socket.on('user-left', () => document.getElementById('leaveSound').play());
-   
+
     document.getElementById('mute').onclick = () => {
       if (!myStream) return;
       isMuted = !isMuted;
@@ -335,7 +330,7 @@
       btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
       socket.emit('toggle-mute', isMuted);
     };
-   
+
     document.getElementById('disco').onclick = () => {
       discoMode = !discoMode;
       const btn = document.getElementById('disco');
@@ -347,7 +342,7 @@
         btn.textContent = '🪩 دیسکو روشن!';
       }
     };
-   
+
     document.getElementById('shareScreen').onclick = async () => {
       if (!isSharingScreen) {
         try {
@@ -371,47 +366,50 @@
         stopScreenShare();
       }
     };
-   
+
     function stopScreenShare() {
       if (!screenStream) return;
       screenStream.getTracks().forEach(t => t.stop());
       screenStream = null;
       isSharingScreen = false;
       document.getElementById('shareScreen').textContent = '📺 اشتراک صفحه';
+      Object.values(peers).forEach(peer => {
+        const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video' && s.track.readyState === 'ended');
+        if (sender) sender.replaceTrack(null);
+      });
     }
-   
+
     function addRemoteScreen(stream, peerId) {
       document.getElementById('screenShareCard').style.display = 'block';
       if (document.getElementById('wrapper-' + peerId)) return;
-     
+    
       const wrapper = document.createElement('div');
       wrapper.className = 'screen-wrapper';
       wrapper.id = 'wrapper-' + peerId;
-     
+    
       const video = document.createElement('video');
       video.id = 'screen-' + peerId;
       video.srcObject = stream;
       video.autoplay = true;
       video.playsInline = true;
-     
+    
       const label = document.createElement('div');
       label.className = 'screen-label';
-      label.textContent = `${myName === "ناشناس شیطون" ? 'شیطون ناشناس' : getUserName(peerId)} داره share می‌کنه 😏`;
-     
+      label.textContent = `${users[peerId] || 'شیطون ناشناس'} داره share می‌کنه 😏`;
+    
       wrapper.appendChild(video);
       wrapper.appendChild(label);
       document.getElementById('screenContainer').appendChild(wrapper);
     }
-   
+
     function getUserName(peerId) {
-      // placeholder ساده – اگه لیست کاربرها رو داشتی بهتر می‌شه
-      return 'دوست انیمه‌ای';
+      return users[peerId] || 'دوست انیمه‌ای';
     }
-   
+
     document.getElementById('uploadMusicBtn').onclick = () => {
       document.getElementById('musicInput').click();
     };
-   
+
     document.getElementById('musicInput').onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -447,7 +445,7 @@
       document.getElementById('progressBar').value = 0;
       xhr.send(formData);
     };
-   
+
     function playPartyMusic(url, state) {
       partyAudio = document.getElementById('partyMusic');
       partyAudio.src = url;
@@ -462,9 +460,9 @@
       document.getElementById('chat').innerHTML += `<div class="msg"><strong>رادیو پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🔥</div>`;
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
-   
+
     socket.on('music-sync', ({url, state}) => playPartyMusic(url, state));
-   
+
     socket.on('music-state-update', (state) => {
       if (!partyAudio) return;
       if (Math.abs(partyAudio.currentTime - state.currentTime) > 0.5) {
@@ -473,22 +471,22 @@
       if (state.playing && partyAudio.paused) partyAudio.play();
       if (!state.playing && !partyAudio.paused) partyAudio.pause();
     });
-   
+
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         myStream = stream;
         visualize(stream, socket.id);
-       
+      
         socket.on('current-users', (users) => {
           users.forEach(userId => {
             if (userId !== socket.id) createPeer(userId, false);
           });
         });
-       
+      
         socket.on('user-joined', (newUserId) => {
           if (newUserId !== socket.id) createPeer(newUserId, true);
         });
-       
+      
         socket.on('user-left', (leftId) => {
           if (peers[leftId]) {
             peers[leftId].destroy();
@@ -497,14 +495,14 @@
           const wrapper = document.getElementById('wrapper-' + leftId);
           if (wrapper) wrapper.remove();
         });
-       
+      
         socket.on('signal', (data) => {
           if (!peers[data.from]) createPeer(data.from, false);
           peers[data.from].signal(data.signal);
         });
       })
       .catch(() => alert('میکروفون بده دیگه Brozone! 😤 بدون صدا پارتی نمیشه که 😭'));
-   
+
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
       const peer = new SimplePeer({
@@ -518,9 +516,9 @@
           ]
         }
       });
-     
+    
       peer.on('signal', signal => socket.emit('signal', { to: peerId, signal }));
-     
+    
       peer.on('stream', remoteStream => {
         if (remoteStream.getVideoTracks().length > 0) {
           addRemoteScreen(remoteStream, peerId);
@@ -529,12 +527,12 @@
           visualize(remoteStream, peerId);
         }
       });
-     
+    
       peer.on('close', () => delete peers[peerId]);
-     
+    
       peers[peerId] = peer;
     }
-   
+
     function addRemoteAudio(stream, peerId) {
       if (document.getElementById(peerId)) return;
       const audio = document.createElement('audio');
@@ -544,7 +542,7 @@
       audio.play().catch(e => console.log("autoplay blocked:", e));
       document.body.appendChild(audio);
     }
-   
+
     function visualize(stream, userId) {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioCtx.createMediaStreamSource(stream);
@@ -553,7 +551,7 @@
       source.connect(analyser);
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-     
+    
       function draw() {
         requestAnimationFrame(draw);
         analyser.getByteFrequencyData(dataArray);
@@ -565,7 +563,7 @@
       }
       draw();
     }
-   
+
     setInterval(() => {
       if (isHost && partyAudio) {
         socket.emit('music-state-update', {
