@@ -29,7 +29,7 @@
       content:"";
       position:fixed;
       inset:0;
-      background: url('https://images6.alphacoders.com/791/791083.jpg') center/cover; /* ⭐ والپیپر خفن SAO! کیریتو و آسونا، وایyy عشق 😍🗡️ */
+      background: url('https://images6.alphacoders.com/791/791083.jpg') center/cover;
       opacity:0.08;
       z-index:-2;
       animation: bgFloat 60s infinite alternate;
@@ -63,7 +63,7 @@
       text-align:center;
       transition: all 0.5s;
       animation: float 6s infinite ease-in-out;
-      position: relative; /* برای visualizer */
+      position: relative;
     }
     .user img {
       width:110px; height:110px;
@@ -183,11 +183,21 @@
       <div id="online">آنلاین: ۱ نفر (تو تنهایی فعلاً 😂)</div>
       <div class="users" id="userList"></div>
     </div>
+    
+    <!-- ⭐ کارت جدید برای نمایش صفحه‌های شیر شده -->
+    <div class="card" id="screenShareCard" style="display:none;">
+      <h3 style="text-align:center;">👀 صفحه‌های در حال اشتراک</h3>
+      <div id="screenContainer" style="display:flex;flex-direction:column;gap:20px;align-items:center;">
+      </div>
+    </div>
+    
     <div class="controls">
       <button id="mute">🔇 مات کردن میکروفون</button>
       <button id="disco">🪩 دیسکو روشن!</button>
+      <button id="shareScreen">📺 اشتراک صفحه</button>
       <button id="uploadMusicBtn">🎵 آپلود و پخش موزیک!</button>
     </div>
+    
     <div id="uploadProgress"><progress id="progressBar" value="0" max="100"></progress></div>
     <div class="card" id="musicPlayerCard" style="display:none;">
       <h3>🎶 موزیک پارتی (همه با هم گوش بدیم 😏)</h3>
@@ -200,35 +210,44 @@
       <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
     </div>
   </div>
+  
   <input type="file" id="musicInput" accept="audio/*" style="display:none;">
   <audio id="joinSound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" preload="auto"></audio>
   <audio id="leaveSound" src="https://assets.mixkit.co/sfx/preview/mixkit-negative-answer-little-beep-932.mp3" preload="auto"></audio>
+  
   <script>
     const socket = io();
     let myStream, peers = {}, myName = "ناشناس شیطون";
     let isMuted = false, discoMode = false;
-    let isHost = false;           // ⭐ جدید: فقط آپلودکننده host و کنترل داره
-    let partyAudio = null;        // ⭐ اشاره به audio برای sync
+    let isHost = false;
+    let partyAudio = null;
+    
+    // ⭐ متغیرها و فانکشن‌های Share Screen
+    let screenStream = null;
+    let isSharingScreen = false;
+    
     const animeAvatars = [
-      "https://i.imgur.com/7z3f8kP.jpeg", // چیبی ناروتو
-      "https://i.imgur.com/JdQAR2s.jpeg", // چیبی لِوی
-      "https://i.imgur.com/6f4p1kZ.jpeg", // چیبی ساکورا
-      "https://i.imgur.com/8pK9p3Q.jpeg", // چیبی گوکو
-      "https://i.imgur.com/Vf2mK9r.jpeg", // چیبی لافی
-      "https://i.imgur.com/Ht9pL5X.jpeg", // چیبی رِم
-      "https://i.imgur.com/Kr8pQ2m.jpeg", // چیبی املیا
-      "https://i.imgur.com/3qWvZ8Y.jpeg", // چیبی آسونا
-      "https://i.imgur.com/9pR5v2B.jpeg", // چیبی میکاسا
-      "https://i.imgur.com/fG4mP7k.jpeg", // چیبی هیناتا
-      "https://i.imgur.com/Lp9kM3v.jpeg", // چیبی زورو
-      "https://i.imgur.com/2mV8qRt.jpeg" // یه چیبی دیگه
+      "https://i.imgur.com/7z3f8kP.jpeg",
+      "https://i.imgur.com/JdQAR2s.jpeg",
+      "https://i.imgur.com/6f4p1kZ.jpeg",
+      "https://i.imgur.com/8pK9p3Q.jpeg",
+      "https://i.imgur.com/Vf2mK9r.jpeg",
+      "https://i.imgur.com/Ht9pL5X.jpeg",
+      "https://i.imgur.com/Kr8pQ2m.jpeg",
+      "https://i.imgur.com/3qWvZ8Y.jpeg",
+      "https://i.imgur.com/9pR5v2B.jpeg",
+      "https://i.imgur.com/fG4mP7k.jpeg",
+      "https://i.imgur.com/Lp9kM3v.jpeg",
+      "https://i.imgur.com/2mV8qRt.jpeg"
     ];
+    
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
       socket.emit('set-name', myName);
       document.querySelector('.card input').style.display = 'none';
       document.querySelector('.card button').style.display = 'none';
     }
+    
     function sendMsg() {
       const input = document.getElementById('msgInput');
       if (input.value.trim()) {
@@ -236,6 +255,7 @@
         input.value = '';
       }
     }
+    
     socket.on('user-list', (users) => {
       document.getElementById('online').textContent = `آنلاین: ${users.length} نفر 🔥`;
       const list = document.getElementById('userList');
@@ -246,13 +266,16 @@
         </div>
       `).join('');
     });
+    
     socket.on('chat', (data) => {
       const chat = document.getElementById('chat');
       chat.innerHTML += `<div class="msg"><strong>${data.name}:</strong> ${data.msg}</div>`;
       chat.scrollTop = chat.scrollHeight;
     });
+    
     socket.on('user-joined', () => document.getElementById('joinSound').play());
     socket.on('user-left', () => document.getElementById('leaveSound').play());
+    
     document.getElementById('mute').onclick = () => {
       if (!myStream) return;
       isMuted = !isMuted;
@@ -262,6 +285,7 @@
       btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
       socket.emit('toggle-mute', isMuted);
     };
+    
     document.getElementById('disco').onclick = () => {
       discoMode = !discoMode;
       const btn = document.getElementById('disco');
@@ -273,10 +297,71 @@
         btn.textContent = '🪩 دیسکو روشن!';
       }
     };
-    // فیچر موزیک با progress bar
+    
+    // ⭐ دکمه Share Screen
+    document.getElementById('shareScreen').onclick = async () => {
+      if (!isSharingScreen) {
+        try {
+          screenStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: false // اگه صداشم می‌خوای true کن 😏
+          });
+          
+          const screenTrack = screenStream.getVideoTracks()[0];
+          
+          Object.values(peers).forEach(peer => {
+            const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) {
+              sender.replaceTrack(screenTrack);
+            } else {
+              peer._pc.addTrack(screenTrack, screenStream);
+            }
+          });
+          
+          screenTrack.onended = stopScreenShare;
+          isSharingScreen = true;
+          document.getElementById('shareScreen').textContent = '❌ توقف اشتراک';
+        } catch (err) {
+          alert('اجازه Share Screen ندادی Brozone! 😤 یا کنسل کردی');
+        }
+      } else {
+        stopScreenShare();
+      }
+    };
+    
+    function stopScreenShare() {
+      if (!screenStream) return;
+      screenStream.getTracks().forEach(t => t.stop());
+      screenStream = null;
+      isSharingScreen = false;
+      document.getElementById('shareScreen').textContent = '📺 اشتراک صفحه';
+      
+      // اختیاری: ویدیوهای ریموت رو پاک کن اگر کسی دیگه شیر نکنه
+      // می‌تونی بعداً بهترش کنی
+    }
+    
+    // ⭐ وقتی ریموت استریم ویدیو داره → شیر اسکرین
+    function addRemoteScreen(stream, peerId) {
+      document.getElementById('screenShareCard').style.display = 'block';
+      if (document.getElementById('screen-' + peerId)) return;
+      
+      const video = document.createElement('video');
+      video.id = 'screen-' + peerId;
+      video.srcObject = stream;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.style.width = '100%';
+      video.style.maxWidth = '900px';
+      video.style.borderRadius = '20px';
+      video.style.boxShadow = '0 0 40px rgba(255,46,99,0.6)';
+      document.getElementById('screenContainer').appendChild(video);
+    }
+    
+    // بقیه کدهای اصلی (موزیک، WebRTC و ...)
     document.getElementById('uploadMusicBtn').onclick = () => {
       document.getElementById('musicInput').click();
     };
+    
     document.getElementById('musicInput').onchange = (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -297,7 +382,7 @@
       xhr.onload = () => {
         if (xhr.status === 200) {
           const data = JSON.parse(xhr.responseText);
-          isHost = true;  // ⭐ فقط آپلودکننده host میشه
+          isHost = true;
           playPartyMusic(data.url, { playing: true, currentTime: 0 });
         } else {
           alert('آپلود نشد Brozone! 😭');
@@ -313,70 +398,67 @@
       xhr.send(formData);
     };
     
-    // ⭐ تابع جدید playPartyMusic برای sync رادیو
     function playPartyMusic(url, state) {
       partyAudio = document.getElementById('partyMusic');
       partyAudio.src = url;
-
-      // controls فقط برای host نشون بده (برای حس رادیو زنده بیشتر، می‌تونی false کنی)
       partyAudio.controls = isHost;
-
       partyAudio.currentTime = state.currentTime || 0;
-
       if (state.playing) {
         partyAudio.play().catch(() => {});
       } else {
         partyAudio.pause();
       }
-
       document.getElementById('musicPlayerCard').style.display = 'block';
-      
-      document.getElementById('chat').innerHTML += 
+      document.getElementById('chat').innerHTML +=
         `<div class="msg"><strong>رادیو پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🔥</div>`;
       document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
-
-    // ⭐ listenerهای جدید برای sync
+    
     socket.on('music-sync', ({url, state}) => {
       playPartyMusic(url, state);
     });
-
+    
     socket.on('music-state-update', (state) => {
       if (!partyAudio) return;
-      
       if (Math.abs(partyAudio.currentTime - state.currentTime) > 0.5) {
         partyAudio.currentTime = state.currentTime;
       }
-      
       if (state.playing && partyAudio.paused) partyAudio.play();
       if (!state.playing && !partyAudio.paused) partyAudio.pause();
     });
-
-    // WebRTC با visualizer صدا
+    
     navigator.mediaDevices.getUserMedia({ audio: true })
       .then(stream => {
         myStream = stream;
-        visualize(stream, socket.id); // visualizer برای خودم
+        visualize(stream, socket.id);
+        
         socket.on('current-users', (users) => {
           users.forEach(userId => {
             if (userId !== socket.id) createPeer(userId, false);
           });
         });
+        
         socket.on('user-joined', (newUserId) => {
           if (newUserId !== socket.id) createPeer(newUserId, true);
         });
+        
         socket.on('user-left', (leftId) => {
           if (peers[leftId]) {
             peers[leftId].destroy();
             delete peers[leftId];
+            // پاک کردن ویدیو شیر اسکرین اگر داشت
+            const screenVideo = document.getElementById('screen-' + leftId);
+            if (screenVideo) screenVideo.remove();
           }
         });
+        
         socket.on('signal', (data) => {
           if (!peers[data.from]) createPeer(data.from, false);
           peers[data.from].signal(data.signal);
         });
       })
       .catch(() => alert('میکروفون بده دیگه Brozone! 😤 بدون صدا پارتی نمیشه که 😭'));
+    
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
       const peer = new SimplePeer({
@@ -390,18 +472,27 @@
           ]
         }
       });
+      
       peer.on('signal', signal => {
         socket.emit('signal', { to: peerId, signal });
       });
+      
       peer.on('stream', remoteStream => {
-        addRemoteAudio(remoteStream, peerId);
-        visualize(remoteStream, peerId); // ⭐ visualizer برای ریموت
+        if (remoteStream.getVideoTracks().length > 0) {
+          addRemoteScreen(remoteStream, peerId);
+        } else {
+          addRemoteAudio(remoteStream, peerId);
+          visualize(remoteStream, peerId);
+        }
       });
+      
       peer.on('close', () => {
         delete peers[peerId];
       });
+      
       peers[peerId] = peer;
     }
+    
     function addRemoteAudio(stream, peerId) {
       if (document.getElementById(peerId)) return;
       const audio = document.createElement('audio');
@@ -411,7 +502,7 @@
       audio.play().catch(e => console.log("autoplay blocked:", e));
       document.body.appendChild(audio);
     }
-    // ⭐ فانکشن visualizer برای بزرگ کوچیک شدن دایره بر اساس صدا
+    
     function visualize(stream, userId) {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioCtx.createMediaStreamSource(stream);
@@ -420,19 +511,19 @@
       source.connect(analyser);
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
+      
       function draw() {
         requestAnimationFrame(draw);
         analyser.getByteFrequencyData(dataArray);
         let volume = dataArray.reduce((a, b) => a + b) / bufferLength / 255;
         const userDiv = document.querySelector(`.user[data-user-id="${userId}"] img`);
         if (userDiv) {
-          userDiv.style.transform = `scale(${1 + volume * 0.5})`; // بزرگ کوچیک شدن 😏
+          userDiv.style.transform = `scale(${1 + volume * 0.5})`;
         }
       }
       draw();
     }
-
-    // ⭐ هر ۲ ثانیه وضعیت رو از host بفرست برای sync
+    
     setInterval(() => {
       if (isHost && partyAudio) {
         socket.emit('music-state-update', {
