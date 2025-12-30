@@ -590,13 +590,16 @@
       peer.on('signal', signal => socket.emit('signal', { to: peerId, signal }));
    
       peer.on('stream', remoteStream => {
-        if (remoteStream.getVideoTracks().length > 0 && remoteStream.getVideoTracks()[0].enabled) {
-          addRemoteScreen(remoteStream, peerId);
-        } else {
-          addRemoteAudio(remoteStream, peerId);
-          visualize(remoteStream, peerId);
-        }
-      });
+  const videoTrack = remoteStream.getVideoTracks()[0];
+
+  if (videoTrack && videoTrack.label.toLowerCase().includes('screen')) {
+    addRemoteScreen(remoteStream, peerId);
+  } else {
+    addRemoteAudio(remoteStream, peerId);
+    visualize(remoteStream, peerId);
+  }
+});
+
    
       peer.on('close', () => delete peers[peerId]);
    
