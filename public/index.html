@@ -606,14 +606,20 @@
       peers[peerId] = peer;
     }
     function addRemoteAudio(stream, peerId) {
-      if (document.getElementById(peerId)) return;
-      const audio = document.createElement('audio');
-      audio.srcObject = stream;
-      audio.id = peerId;
-      audio.autoplay = true;
-      audio.play().catch(e => console.log("autoplay blocked:", e));
-      document.body.appendChild(audio);
-    }
+  let audio = document.getElementById('audio-' + peerId);
+
+  if (!audio) {
+    audio = document.createElement('audio');
+    audio.id = 'audio-' + peerId;
+    audio.autoplay = true;
+    audio.playsInline = true;
+    document.body.appendChild(audio);
+  }
+
+  audio.srcObject = stream;
+  audio.play().catch(() => {});
+}
+
     function visualize(stream, userId) {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioCtx.createMediaStreamSource(stream);
