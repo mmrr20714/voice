@@ -253,7 +253,7 @@
     <h1>Brozone Voice Party 💜🪩✨</h1>
     <div class="card">
       <input type="text" id="nameInput" placeholder="اسم انیمه‌ای شیطونیت چیه؟ 😈" maxlength="20">
-      <button onclick="setName()">استارت پارتی!</button>
+      <button id="startPartyBtn">استارت پارتی!</button>
     </div>
     <div class="card">
       <div id="online">آنلاین: ۱ نفر (تو تنهایی فعلاً 😂)</div>
@@ -278,7 +278,7 @@
     <div class="card">
       <h3>چت متنی (که داد نزنیم 😏)</h3>
       <div id="chat"></div>
-      <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." onkeypress="if(event.key==='Enter') sendMsg()">
+      <input type="text" id="msgInput" placeholder="یه نیش بامزه بنداز..." >
     </div>
     <div class="anime-girl-section card">
       <img src="image/gol.png" alt="دختر شیطون انیمه‌ای 💜🌸">
@@ -320,8 +320,8 @@
     function setName() {
       myName = document.getElementById('nameInput').value.trim() || "Brozone جون";
       socket.emit('set-name', myName);
-      document.querySelector('.card input').style.display = 'none';
-      document.querySelector('.card button').style.display = 'none';
+      document.getElementById('nameInput').style.display = 'none';
+      document.getElementById('startPartyBtn').style.display = 'none';
     }
 
     function sendMsg() {
@@ -352,88 +352,6 @@
 
     socket.on('user-joined', () => document.getElementById('joinSound').play());
     socket.on('user-left', () => document.getElementById('leaveSound').play());
-
-    document.getElementById('mute').onclick = () => {
-      if (!myStream) return;
-      isMuted = !isMuted;
-      myStream.getAudioTracks()[0].enabled = !isMuted;
-      const btn = document.getElementById('mute');
-      btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
-      btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
-      socket.emit('toggle-mute', isMuted);
-    };
-
-    document.getElementById('disco').onclick = () => {
-      discoMode = !discoMode;
-      const btn = document.getElementById('disco');
-      if (discoMode) {
-        document.body.classList.add('disco-active');
-        btn.textContent = '🪩 دیسکو خاموش!';
-      } else {
-        document.body.classList.remove('disco-active');
-        btn.textContent = '🪩 دیسکو روشن!';
-      }
-    };
-
-    document.getElementById('shareScreen').onclick = async () => {
-      if (isSharingScreen) {
-        stopScreenShare();
-        return;
-      }
-
-      try {
-        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-        const screenTrack = screenStream.getVideoTracks()[0];
-
-        document.getElementById('screenShareCard').style.display = 'block';
-        if (!document.getElementById(myScreenWrapperId)) {
-          const wrapper = document.createElement('div');
-          wrapper.className = 'screen-wrapper';
-          wrapper.id = myScreenWrapperId;
-          const video = document.createElement('video');
-          video.srcObject = screenStream;
-          video.autoplay = true;
-          video.playsInline = true;
-          const label = document.createElement('div');
-          label.className = 'screen-label';
-          label.textContent = 'تو داری share می‌کنی 😈';
-          wrapper.appendChild(video);
-          wrapper.appendChild(label);
-          document.getElementById('screenContainer').prepend(wrapper);
-        }
-
-        Object.values(peers).forEach(peer => {
-          const sender = peer._pc.getSenders().find(s => s.track?.kind === 'video');
-          if (sender) sender.replaceTrack(screenTrack);
-        });
-
-        screenTrack.onended = stopScreenShare;
-        isSharingScreen = true;
-        document.getElementById('shareScreen').textContent = '❌ توقف اشتراک';
-      } catch (err) {
-        alert('اجازه Share Screen ندادی Brozone! 😤');
-      }
-    };
-
-    function stopScreenShare() {
-      if (!screenStream) return;
-
-      document.getElementById(myScreenWrapperId)?.remove();
-
-      Object.values(peers).forEach(peer => {
-        const sender = peer._pc.getSenders().find(s => s.track?.kind === 'video');
-        if (sender && dummyVideoTrack) sender.replaceTrack(dummyVideoTrack);
-      });
-
-      screenStream.getTracks().forEach(t => t.stop());
-      screenStream = null;
-      isSharingScreen = false;
-      document.getElementById('shareScreen').textContent = '📺 اشتراک صفحه';
-
-      if (!document.getElementById('screenContainer').children.length) {
-        document.getElementById('screenShareCard').style.display = 'none';
-      }
-    }
 
     function addRemoteScreen(stream, peerId) {
       document.getElementById('screenShareCard').style.display = 'block';
@@ -486,79 +404,51 @@
       draw();
     }
 
-    // Music upload and sync (unchanged)
-    document.getElementById('uploadMusicBtn').onclick = () => document.getElementById('musicInput').click();
-    document.getElementById('musicInput').onchange = (e) => { /* همون کد قبلی آپلود */ };
-
-    function playPartyMusic(url, state) { /* همون کد قبلی */ }
+    function playPartyMusic(url, state) {
+      partyAudio = document.getElementById('partyMusic');
+      partyAudio.src = url;
+      partyAudio.controls = isHost;
+      partyAudio.currentTime = state.currentTime || 0;
+      if (state.playing) partyAudio.play().catch(() => {});
+      else partyAudio.pause();
+      document.getElementById('musicPlayerCard').style.display = 'block';
+      const chat = document.getElementById('chat');
+      chat.innerHTML += `<div class="msg"><strong>رادیو پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🔥</div>`;
+      chat.scrollTop = chat.scrollHeight;
+    }
 
     socket.on('music-sync', ({url, state}) => playPartyMusic(url, state));
-    socket.on('music-state-update', (state) => { /* همون کد قبلی */ });
 
-    navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-      myStream = stream;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = 640; canvas.height = 480;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#0d001a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const dummyStream = canvas.captureStream(30);
-      dummyVideoTrack = dummyStream.getVideoTracks()[0];
-      myStream.addTrack(dummyVideoTrack);
-
-      visualize(stream, socket.id);
-      setupPeers();
-      setupEventListeners(); // <--- این جدیده!
-    })
-      .catch(() => alert('میکروفون بده دیگه Brozone! 😭'));
-    function setupEventListeners() {
-    // استارت پارتی
-    document.querySelector('.card button').addEventListener('click', setName);
-
-    // مات کردن میکروفون
-    document.getElementById('mute').addEventListener('click', () => {
-      if (!myStream) return;
-      isMuted = !isMuted;
-      myStream.getAudioTracks()[0].enabled = !isMuted;
-      const btn = document.getElementById('mute');
-      btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
-      btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
-      socket.emit('toggle-mute', isMuted);
+    socket.on('music-state-update', (state) => {
+      if (!partyAudio) return;
+      if (Math.abs(partyAudio.currentTime - state.currentTime) > 0.5) partyAudio.currentTime = state.currentTime;
+      if (state.playing && partyAudio.paused) partyAudio.play();
+      if (!state.playing && !partyAudio.paused) partyAudio.pause();
     });
 
-    // دیسکو
-    document.getElementById('disco').addEventListener('click', () => {
-      discoMode = !discoMode;
-      const btn = document.getElementById('disco');
-      if (discoMode) {
-        document.body.classList.add('disco-active');
-        btn.textContent = '🪩 دیسکو خاموش!';
-      } else {
-        document.body.classList.remove('disco-active');
-        btn.textContent = '🪩 دیسکو روشن!';
-      }
-    });
+    function stopScreenShare() {
+      if (!screenStream) return;
+      document.getElementById(myScreenWrapperId)?.remove();
+      Object.values(peers).forEach(peer => {
+        const sender = peer._pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender && dummyVideoTrack) sender.replaceTrack(dummyVideoTrack);
+      });
+      screenStream.getTracks().forEach(t => t.stop());
+      screenStream = null;
+      isSharingScreen = false;
+      document.getElementById('shareScreen').textContent = '📺 اشتراک صفحه';
+      if (!document.getElementById('screenContainer').children.length) document.getElementById('screenShareCard').style.display = 'none';
+    }
 
-    // share screen (این قبلاً بود، فقط مطمئن شو)
-    document.getElementById('shareScreen').addEventListener('click', async () => {
-      if (isSharingScreen) {
-        stopScreenShare();
-        return;
-      }
     function setupPeers() {
       socket.on('current-users', userIds => userIds.forEach(id => id !== socket.id && !peers[id] && createPeer(id, true)));
-
       socket.on('user-joined', id => id !== socket.id && !peers[id] && createPeer(id, true));
-
       socket.on('user-left', id => {
         if (peers[id]) peers[id].destroy();
         delete peers[id];
         document.getElementById('wrapper-' + id)?.remove();
         if (!document.getElementById('screenContainer').children.length) document.getElementById('screenShareCard').style.display = 'none';
       });
-
       socket.on('signal', data => {
         if (!peers[data.from]) createPeer(data.from, false);
         peers[data.from].signal(data.signal);
@@ -567,7 +457,6 @@
 
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
-
       const peer = new SimplePeer({
         initiator,
         stream: myStream,
@@ -597,19 +486,136 @@
 
       peer.on('stream', remoteStream => {
         const videoTrack = remoteStream.getVideoTracks()[0];
-        if (videoTrack && videoTrack.label.toLowerCase().includes('screen')) {
-          addRemoteScreen(remoteStream, peerId);
-        } else {
+        if (videoTrack && videoTrack.label.toLowerCase().includes('screen')) addRemoteScreen(remoteStream, peerId);
+        else {
           addRemoteAudio(remoteStream, peerId);
           visualize(remoteStream, peerId);
         }
       });
 
-      peer.on('error', () => setTimeout(() => createPeer(peerId, true), 3000));
-      peer.on('close', () => setTimeout(() => createPeer(peerId, true), 5000));
+      peer.on('error', err => console.error('Peer error', err));
+      peer.on('close', () => delete peers[peerId]);
 
       peers[peerId] = peer;
     }
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        myStream = stream;
+        const canvas = document.createElement('canvas');
+        canvas.width = 640; canvas.height = 480;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0d001a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const dummyStream = canvas.captureStream(30);
+        dummyVideoTrack = dummyStream.getVideoTracks()[0];
+        myStream.addTrack(dummyVideoTrack);
+
+        visualize(stream, socket.id);
+        setupPeers();
+
+        // همه event listenerها اینجا
+        document.getElementById('startPartyBtn').addEventListener('click', setName);
+
+        document.getElementById('mute').addEventListener('click', () => {
+          if (!myStream) return;
+          isMuted = !isMuted;
+          myStream.getAudioTracks()[0].enabled = !isMuted;
+          const btn = document.getElementById('mute');
+          btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
+          btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
+          socket.emit('toggle-mute', isMuted);
+        });
+
+        document.getElementById('disco').addEventListener('click', () => {
+          discoMode = !discoMode;
+          const btn = document.getElementById('disco');
+          if (discoMode) {
+            document.body.classList.add('disco-active');
+            btn.textContent = '🪩 دیسکو خاموش!';
+          } else {
+            document.body.classList.remove('disco-active');
+            btn.textContent = '🪩 دیسکو روشن!';
+          }
+        });
+
+        document.getElementById('shareScreen').addEventListener('click', async () => {
+          if (isSharingScreen) {
+            stopScreenShare();
+            return;
+          }
+          try {
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            const screenTrack = screenStream.getVideoTracks()[0];
+            document.getElementById('screenShareCard').style.display = 'block';
+            if (!document.getElementById(myScreenWrapperId)) {
+              const wrapper = document.createElement('div');
+              wrapper.className = 'screen-wrapper';
+              wrapper.id = myScreenWrapperId;
+              const video = document.createElement('video');
+              video.srcObject = screenStream;
+              video.autoplay = true;
+              video.playsInline = true;
+              const label = document.createElement('div');
+              label.className = 'screen-label';
+              label.textContent = 'تو داری share می‌کنی 😈';
+              wrapper.appendChild(video);
+              wrapper.appendChild(label);
+              document.getElementById('screenContainer').prepend(wrapper);
+            }
+            Object.values(peers).forEach(peer => {
+              const sender = peer._pc.getSenders().find(s => s.track?.kind === 'video');
+              if (sender) sender.replaceTrack(screenTrack);
+            });
+            screenTrack.onended = stopScreenShare;
+            isSharingScreen = true;
+            document.getElementById('shareScreen').textContent = '❌ توقف اشتراک';
+          } catch (err) {
+            alert('اجازه ندادی Brozone شیطون! 😤');
+          }
+        });
+
+        document.getElementById('uploadMusicBtn').addEventListener('click', () => document.getElementById('musicInput').click());
+
+        document.getElementById('musicInput').addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          if (!file.type.startsWith('audio/')) {
+            alert('موزیک واقعی بده Brozone! 😤');
+            return;
+          }
+          const formData = new FormData();
+          formData.append('music', file);
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/upload-music', true);
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              document.getElementById('progressBar').value = (event.loaded / event.total) * 100;
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              const data = JSON.parse(xhr.responseText);
+              isHost = true;
+              playPartyMusic(data.url, { playing: true, currentTime: 0 });
+            } else alert('آپلود نشد 😭');
+            document.getElementById('uploadProgress').style.display = 'none';
+          };
+          xhr.onerror = () => alert('خطا در آپلود 😤');
+          document.getElementById('uploadProgress').style.display = 'block';
+          document.getElementById('progressBar').value = 0;
+          xhr.send(formData);
+        });
+
+        document.getElementById('msgInput').addEventListener('keypress', e => {
+          if (e.key === 'Enter') sendMsg();
+        });
+
+      })
+      .catch(err => {
+        console.error(err);
+        alert('میکروفون دسترسی بده Brozone جون! بدون صدا پارتی نمی‌شه 😭');
+      });
 
     setInterval(() => {
       if (isHost && partyAudio) {
