@@ -496,23 +496,57 @@
     socket.on('music-state-update', (state) => { /* همون کد قبلی */ });
 
     navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
-        myStream = stream;
+    .then(stream => {
+      myStream = stream;
 
-        const canvas = document.createElement('canvas');
-        canvas.width = 640; canvas.height = 480;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#0d001a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const dummyStream = canvas.captureStream(30);
-        dummyVideoTrack = dummyStream.getVideoTracks()[0];
-        myStream.addTrack(dummyVideoTrack);
+      const canvas = document.createElement('canvas');
+      canvas.width = 640; canvas.height = 480;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0d001a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const dummyStream = canvas.captureStream(30);
+      dummyVideoTrack = dummyStream.getVideoTracks()[0];
+      myStream.addTrack(dummyVideoTrack);
 
-        visualize(stream, socket.id);
-        setupPeers();
-      })
+      visualize(stream, socket.id);
+      setupPeers();
+      setupEventListeners(); // <--- این جدیده!
+    })
       .catch(() => alert('میکروفون بده دیگه Brozone! 😭'));
+    function setupEventListeners() {
+    // استارت پارتی
+    document.querySelector('.card button').addEventListener('click', setName);
 
+    // مات کردن میکروفون
+    document.getElementById('mute').addEventListener('click', () => {
+      if (!myStream) return;
+      isMuted = !isMuted;
+      myStream.getAudioTracks()[0].enabled = !isMuted;
+      const btn = document.getElementById('mute');
+      btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
+      btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
+      socket.emit('toggle-mute', isMuted);
+    });
+
+    // دیسکو
+    document.getElementById('disco').addEventListener('click', () => {
+      discoMode = !discoMode;
+      const btn = document.getElementById('disco');
+      if (discoMode) {
+        document.body.classList.add('disco-active');
+        btn.textContent = '🪩 دیسکو خاموش!';
+      } else {
+        document.body.classList.remove('disco-active');
+        btn.textContent = '🪩 دیسکو روشن!';
+      }
+    });
+
+    // share screen (این قبلاً بود، فقط مطمئن شو)
+    document.getElementById('shareScreen').addEventListener('click', async () => {
+      if (isSharingScreen) {
+        stopScreenShare();
+        return;
+      }
     function setupPeers() {
       socket.on('current-users', userIds => userIds.forEach(id => id !== socket.id && !peers[id] && createPeer(id, true)));
 
