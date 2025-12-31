@@ -75,6 +75,8 @@
       padding:5px;
       transition: all 0.4s;
       box-shadow: 0 0 20px rgba(255,46,99,0.5);
+      --voice: 1;
+      transform: scale(var(--voice));
     }
     .user:hover img { transform:scale(1.2) rotate(10deg); }
     .user span {
@@ -268,6 +270,11 @@
       <button id="disco">🪩 دیسکو روشن!</button>
       <button id="shareScreen">📺 اشتراک صفحه</button>
       <button id="uploadMusicBtn">🎵 آپلود و پخش موزیک!</button>
+      <div style="text-align:center;margin-top:15px;">
+        🎚️ تقویت صدای خودت
+        <input type="range" id="selfVolume" min="0" max="200" value="100">
+        <span id="selfVolumeLabel">100%</span>
+      </div>
     </div>
     <div id="uploadProgress"><progress id="progressBar" value="0" max="100"></progress></div>
     <div class="card" id="musicPlayerCard" style="display:none;">
@@ -303,6 +310,11 @@
     let users = {};
     let myScreenWrapperId = 'wrapper-local';
     let dummyVideoTrack = null;
+    let audioCtx;
+    let micSource;
+    let micGain;
+    let processedStream;
+    let selfVolume = 100;
 
     const animeAvatars = [
       "https://wallpapers-clan.com/wp-content/uploads/2025/05/pensive-anime-girl-neon-lights-desktop-wallpaper-preview.jpg",
@@ -346,7 +358,10 @@
 
     socket.on('chat', (data) => {
       const chat = document.getElementById('chat');
-      chat.innerHTML += `<div class="msg"><strong>${data.name}:</strong> ${data.msg}</div>`;
+      const msg = document.createElement('div');
+      msg.className = 'msg';
+      msg.textContent = `${data.name}: ${data.msg}`;
+      chat.appendChild(msg);
       chat.scrollTop = chat.scrollHeight;
     });
 
@@ -354,13 +369,23 @@
     socket.on('user-left', () => document.getElementById('leaveSound').play());
 
     document.getElementById('mute').onclick = () => {
-      if (!myStream) return;
       isMuted = !isMuted;
-      myStream.getAudioTracks()[0].enabled = !isMuted;
-      const btn = document.getElementById('mute');
-      btn.textContent = isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
-      btn.style.background = isMuted ? '#16213e' : 'linear-gradient(45deg, var(--neon), var(--purple))';
+      if (micGain) {
+        micGain.gain.value = isMuted ? 0 : selfVolume / 100;
+      }
+      document.getElementById('mute').textContent =
+        isMuted ? '🔊 آنمات کردن' : '🔇 مات کردن میکروفون';
       socket.emit('toggle-mute', isMuted);
+    };
+
+    const volumeSlider = document.getElementById('selfVolume');
+    const volumeLabel = document.getElementById('selfVolumeLabel');
+    volumeSlider.oninput = () => {
+      selfVolume = volumeSlider.value;
+      volumeLabel.textContent = selfVolume + '%';
+      if (micGain) {
+        micGain.gain.value = isMuted ? 0 : selfVolume / 100;
+      }
     };
 
     document.getElementById('disco').onclick = () => {
@@ -381,7 +406,6 @@
         try {
           screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
           const screenTrack = screenStream.getVideoTracks()[0];
-
           // پیش‌نمایش محلی
           document.getElementById('screenShareCard').style.display = 'block';
           if (!document.getElementById(myScreenWrapperId)) {
@@ -399,13 +423,11 @@
             wrapper.appendChild(label);
             document.getElementById('screenContainer').prepend(wrapper);
           }
-
           // جایگزینی امن ویدیو ترَک
           Object.values(peers).forEach(peer => {
             const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video');
             if (sender) sender.replaceTrack(screenTrack).catch(() => {});
           });
-
           screenTrack.onended = stopScreenShare;
           isSharingScreen = true;
           document.getElementById('shareScreen').textContent = '❌ توقف اشتراک';
@@ -419,23 +441,18 @@
 
     function stopScreenShare() {
       if (!screenStream) return;
-
       const localWrapper = document.getElementById(myScreenWrapperId);
       if (localWrapper) localWrapper.remove();
-
-      // برگردوندن dummy به همه
       Object.values(peers).forEach(peer => {
         const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'video');
         if (sender && dummyVideoTrack) {
           sender.replaceTrack(dummyVideoTrack).catch(() => {});
         }
       });
-
       screenStream.getTracks().forEach(t => t.stop());
       screenStream = null;
       isSharingScreen = false;
       document.getElementById('shareScreen').textContent = '📺 اشتراک صفحه';
-
       if (document.getElementById('screenContainer').children.length === 0) {
         document.getElementById('screenShareCard').style.display = 'none';
       }
@@ -444,7 +461,6 @@
     function addRemoteScreen(stream, peerId) {
       document.getElementById('screenShareCard').style.display = 'block';
       if (document.getElementById('wrapper-' + peerId)) return;
-
       const wrapper = document.createElement('div');
       wrapper.className = 'screen-wrapper';
       wrapper.id = 'wrapper-' + peerId;
@@ -507,8 +523,12 @@
       partyAudio.currentTime = state.currentTime || 0;
       if (state.playing) partyAudio.play().catch(() => {});
       document.getElementById('musicPlayerCard').style.display = 'block';
-      document.getElementById('chat').innerHTML += `<div class="msg"><strong>رادیو پارتی:</strong> موزیک جدید پخش شد! همه برقصین 🎉🔥</div>`;
-      document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+      const chat = document.getElementById('chat');
+      const msg = document.createElement('div');
+      msg.className = 'msg';
+      msg.textContent = 'رادیو پارتی: موزیک جدید پخش شد! همه برقصین 🎉🔥';
+      chat.appendChild(msg);
+      chat.scrollTop = chat.scrollHeight;
     }
 
     socket.on('music-sync', ({url, state}) => playPartyMusic(url, state));
@@ -521,55 +541,67 @@
       if (!state.playing && !partyAudio.paused) partyAudio.pause();
     });
 
-    // بخش اصلی صدا - کامل فیکس شده
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(async stream => {
-        myStream = stream;
+    // بخش اصلی صدا - فیکس‌شده با Gain Node
+    navigator.mediaDevices.getUserMedia({
+      audio: {
+        noiseSuppression: true,
+        echoCancellation: true,
+        autoGainControl: true
+      }
+    })
+    .then(stream => {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      micSource = audioCtx.createMediaStreamSource(stream);
+      micGain = audioCtx.createGain();
+      micGain.gain.value = 1;
+      micSource.connect(micGain);
+      const destination = audioCtx.createMediaStreamDestination();
+      micGain.connect(destination);
+      processedStream = destination.stream;
+      myStream = processedStream;
+      // dummy video track (برای WebRTC)
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 480;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const dummyStream = canvas.captureStream(1);
+      dummyVideoTrack = dummyStream.getVideoTracks()[0];
+      myStream.addTrack(dummyVideoTrack);
+      visualize(myStream, socket.id);
+      socket.emit('ready-for-peers');
 
-        // dummy video track سیاه
-        const canvas = document.createElement('canvas');
-        canvas.width = 640; canvas.height = 480;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const dummyStream = canvas.captureStream(1);
-        dummyVideoTrack = dummyStream.getVideoTracks()[0];
-        myStream.addTrack(dummyVideoTrack);
-
-        visualize(myStream, socket.id);
-
-        socket.on('current-users', (users) => {
-          users.forEach(userId => {
-            if (userId !== socket.id) createPeer(userId, false);
-          });
+      socket.on('current-users', (users) => {
+        users.forEach(userId => {
+          if (userId !== socket.id) createPeer(userId, false);
         });
-
-        socket.on('user-joined', (newUserId) => {
-          if (newUserId !== socket.id) createPeer(newUserId, true);
-        });
-
-        socket.on('user-left', (leftId) => {
-          if (peers[leftId]) {
-            peers[leftId].destroy();
-            delete peers[leftId];
-          }
-          const wrapper = document.getElementById('wrapper-' + leftId);
-          if (wrapper) wrapper.remove();
-          if (document.getElementById('screenContainer').children.length === 0) {
-            document.getElementById('screenShareCard').style.display = 'none';
-          }
-        });
-
-        socket.on('signal', (data) => {
-          if (!peers[data.from]) createPeer(data.from, false);
-          peers[data.from].signal(data.signal);
-        });
-      })
-      .catch(() => alert('میکروفون بده دیگه Brozone! 😤 بدون صدا پارتی نمیشه که 😭'));
+      });
+      socket.on('user-joined', (newUserId) => {
+        if (newUserId !== socket.id) createPeer(newUserId, true);
+      });
+      socket.on('user-left', (leftId) => {
+        if (peers[leftId]) {
+          peers[leftId].destroy();
+          delete peers[leftId];
+        }
+        const wrapper = document.getElementById('wrapper-' + leftId);
+        if (wrapper) wrapper.remove();
+        if (document.getElementById('screenContainer').children.length === 0) {
+          document.getElementById('screenShareCard').style.display = 'none';
+        }
+      });
+      socket.on('signal', (data) => {
+        if (!peers[data.from]) createPeer(data.from, false);
+        peers[data.from].signal(data.signal);
+      });
+    })
+    .catch(() => {
+      alert('Brozone 😤 بدون میکروفون پارتی نداریم');
+    });
 
     function createPeer(peerId, initiator) {
       if (peers[peerId]) return;
-
       const peer = new SimplePeer({
         initiator,
         stream: myStream,
@@ -589,9 +621,7 @@
           ]
         }
       });
-
       peer.on('signal', signal => socket.emit('signal', { to: peerId, signal }));
-
       peer.on('stream', remoteStream => {
         const videoTrack = remoteStream.getVideoTracks()[0];
         if (videoTrack && videoTrack.label && videoTrack.label.toLowerCase().includes('screen')) {
@@ -601,10 +631,13 @@
           visualize(remoteStream, peerId);
         }
       });
-
-      peer.on('close', () => delete peers[peerId]);
+      peer.on('close', () => {
+        delete peers[peerId];
+        if (audioCtx && audioCtx.state !== 'closed') {
+          audioCtx.close();
+        }
+      });
       peer.on('error', err => console.log('peer error:', err));
-
       peers[peerId] = peer;
     }
 
@@ -622,21 +655,20 @@
     }
 
     function visualize(stream, userId) {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
+      const analyserCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = analyserCtx.createMediaStreamSource(stream);
+      const analyser = analyserCtx.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-
       function draw() {
         requestAnimationFrame(draw);
         analyser.getByteFrequencyData(dataArray);
         let volume = dataArray.reduce((a, b) => a + b) / bufferLength / 255;
         const userDiv = document.querySelector(`.user[data-user-id="${userId}"] img`);
         if (userDiv) {
-          userDiv.style.transform = `scale(${1 + volume * 0.5})`;
+          userDiv.style.setProperty('--voice', 1 + volume * 0.4);
         }
       }
       draw();
